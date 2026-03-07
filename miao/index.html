@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>主播专属 · 浏览器引导</title>
+    <style>
+        /* 基础重置 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            min-height: 100vh;
+            background: #f5f5f7;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* 普通浏览器跳转前闪现的提示 */
+        .redirect-message {
+            text-align: center;
+            padding: 2rem;
+            background: white;
+            border-radius: 32px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+            max-width: 500px;
+            margin: 20px;
+            opacity: 0.9;
+            transition: opacity 0.2s;
+        }
+
+        .redirect-message h1 {
+            font-size: 1.8rem;
+            font-weight: 500;
+            color: #111;
+        }
+
+        .redirect-message p {
+            font-size: 1.1rem;
+            color: #333;
+            margin-top: 0.5rem;
+        }
+
+        /* ----- 全屏悬浮层 (仅 TikTok 内显示) ----- */
+        .tiktok-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2147483647;
+            padding: 16px;
+            box-sizing: border-box;
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.2s ease, visibility 0.2s ease;
+        }
+
+        .tiktok-overlay.active {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* 提醒卡片设计 - 纯引导，无关闭/复制按钮 */
+        .overlay-card {
+            background: white;
+            max-width: 400px;
+            width: 100%;
+            border-radius: 36px;
+            padding: 36px 24px 32px;
+            text-align: center;
+            box-shadow: 0 30px 50px rgba(0, 0, 0, 0.5);
+            animation: floatUp 0.3s ease-out;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        @keyframes floatUp {
+            0% { transform: scale(0.95) translateY(20px); opacity: 0.6; }
+            100% { transform: scale(1) translateY(0); opacity: 1; }
+        }
+
+        /* 右上角图标动画 */
+        .menu-icon-container {
+            margin-bottom: 24px;
+            position: relative;
+            display: inline-block;
+        }
+
+        .menu-dots {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            align-items: center;
+            background: #f2f2f5;
+            padding: 16px 28px;
+            border-radius: 60px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            background: #333;
+            border-radius: 60px;
+            animation: pulse 1.5s infinite;
+        }
+
+        .dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        .dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.3); opacity: 1; background: #000; }
+        }
+
+        .arrow-hint {
+            margin-top: 12px;
+            font-size: 1.2rem;
+            color: #666;
+            letter-spacing: 4px;
+        }
+
+        .overlay-card h2 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 20px 0 16px;
+            color: #121212;
+            letter-spacing: -0.02em;
+        }
+
+        .overlay-card p {
+            font-size: 1.2rem;
+            color: #2c2c2e;
+            margin-bottom: 24px;
+            line-height: 1.5;
+            font-weight: 400;
+            padding: 0 8px;
+        }
+
+        .highlight-box {
+            background: linear-gradient(135deg, #f8f8fa, #f0f0f3);
+            border-radius: 24px;
+            padding: 24px 16px;
+            margin: 24px 0 20px;
+            border: 2px solid #000;
+            box-shadow: 0 8px 0 #000;
+        }
+
+        .step-guide {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+
+        .step-guide span {
+            background: #000;
+            color: white;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 40px;
+            font-size: 1.4rem;
+        }
+
+        .browser-highlight {
+            background: #000;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 60px;
+            font-size: 1.25rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin: 16px 0 8px;
+        }
+
+        .browser-highlight svg {
+            width: 24px;
+            height: 24px;
+            fill: white;
+        }
+
+        .tip-strong {
+            background: #e6f0ff;
+            border-radius: 30px;
+            padding: 18px;
+            margin: 24px 0 12px;
+            border: 2px solid #007aff;
+        }
+
+        .tip-strong p {
+            color: #007aff;
+            font-weight: 600;
+            font-size: 1.15rem;
+            margin: 0;
+        }
+
+        .no-close {
+            color: #8e8e93;
+            font-size: 0.9rem;
+            margin-top: 20px;
+            border-top: 1px solid #e9e9ed;
+            padding-top: 18px;
+        }
+
+        /* 微调 */
+        .folder-name-hint {
+            background: #f2f2f5;
+            padding: 10px 20px;
+            border-radius: 40px;
+            font-size: 1.1rem;
+            color: #1c1c1e;
+            margin: 12px auto 0;
+            display: inline-block;
+            border: 1px dashed #888;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 普通浏览器跳转前可见的简单内容（极短时间） -->
+    <div class="redirect-message" id="redirectMessage">
+        <h1>🔄 正在跳转</h1>
+        <p>请稍候，即将访问目标页面</p>
+    </div>
+
+    <!-- 全屏悬浮层 TikTok 提醒 - 无复制/关闭按钮，纯右上角引导，同时提示目录为 /zbj 文件夹 -->
+    <div id="tiktokOverlay" class="tiktok-overlay">
+        <div class="overlay-card">
+             
+            <!-- 强烈提示：右上角引导 -->
+            <div class="tip-strong">
+                <p>⚠️ 点击右上角「···」</p>
+                <p style="font-size: 1.3rem; margin-top: 6px;">选择「在浏览器中打开」</p>
+            </div>
+           
+            <!-- 强调浏览器图标 & 目标文件夹 -->
+            <div class="browser-highlight">
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+                </svg>
+                浏览器打开 /zbj 文件夹
+            </div>
+
+            <!-- 加一个温柔的文件夹提示，让用户知道目标是什么 -->
+            <div class="folder-name-hint">
+                📁 目标: zbj 目录
+            </div>
+
+            <!-- 完全无按钮，只有引导 -->
+            <div class="no-close">
+                ⏳ 完成以上步骤即可自动进入<br>（本弹窗仅用于引导）
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            "use strict";
+
+            // ---------- 目标链接：当前目录下的 zbj 文件夹 ----------
+            // 使用相对路径 "./zbj" 或 "zbj" 都指向当前目录下的 zbj 文件夹
+            const TARGET_URL = "./zbj";   // 修改为当前目录下的 zbj 文件夹
+
+            // ---------- 精确检测 TikTok 内置浏览器 ----------
+            function isTikTokInternalBrowser() {
+                const ua = navigator.userAgent || navigator.vendor || window.opera || '';
+
+                const tikTokPatterns = [
+                    /TikTok/i,
+                    /musically/i,
+                    /ByteDance/i,
+                    /Aweme/i,
+                    /com.ss.android.ugc.trill/i,
+                ];
+
+                for (let pattern of tikTokPatterns) {
+                    if (pattern.test(ua)) {
+                        return true;
+                    }
+                }
+
+                if (navigator.userAgentData && navigator.userAgentData.brands) {
+                    const brands = navigator.userAgentData.brands;
+                    for (let brand of brands) {
+                        if (brand.brand && /TikTok|musically|ByteDance|Aweme/i.test(brand.brand)) {
+                            return true;
+                        }
+                    }
+                }
+
+                return false;
+            }
+
+            const overlay = document.getElementById('tiktokOverlay');
+            const redirectMsg = document.getElementById('redirectMessage');
+
+            if (isTikTokInternalBrowser()) {
+                // TikTok 环境：显示悬浮层，锁定背景，无跳转，无任何复制/关闭按钮
+                if (overlay) {
+                    overlay.classList.add('active');
+                }
+
+                if (redirectMsg) {
+                    redirectMsg.style.opacity = '0';
+                }
+
+                // 锁定滚动
+                document.body.style.overflow = 'hidden';
+                document.documentElement.style.overflow = 'hidden';
+
+                // 完全移除了复制链接的按钮和功能，只剩下视觉引导
+                // 不需要任何点击处理，纯提示
+            } else {
+                // 普通浏览器：跳转到目标链接 (./zbj)
+                // 使用 replace 以避免在历史记录中留下本页
+                setTimeout(function() {
+                    window.location.replace(TARGET_URL);
+                }, 50);
+
+                if (redirectMsg) {
+                    redirectMsg.innerHTML = '<h1>🚀 正在进入</h1><p>即将访问 zbj 文件夹</p>';
+                }
+
+                // 确保滚动恢复 (虽然普通浏览器不需要锁定)
+                document.body.style.overflow = '';
+                document.documentElement.style.overflow = '';
+            }
+        })();
+    </script>
+</body>
+</html>
