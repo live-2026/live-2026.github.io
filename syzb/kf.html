@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>在线客服</title>
+    <style>
+        /* 基础重置 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body, html {
+            height: 100%;
+            overflow: hidden;  /* 防止整体滚动，所有内容在视口内固定 */
+            background-color: #000; /* 边缘背景色 */
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        /* 外层容器：采用 flex 列布局，确保上下紧密贴合 */
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;          /* 占满全屏 */
+            width: 100vw;
+        }
+
+        /* ----- 上部 16:9 图片占位区域 ----- */
+        .image-placeholder {
+            flex: 0 0 auto;                 /* 不伸缩，高度由padding控制 */
+            width: 100%;
+            background-color: #1a1a1a;       /* 深色底垫底 */
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* 用padding-top撑开16:9比例 (9/16 = 56.25%) */
+        .aspect-ratio-box {
+            width: 100%;
+            padding-top: 56.25%;              /* 16:9 比例 */
+            position: relative;
+            background-color: #0b0b0b;         /* 加载中背景 */
+            background-image: linear-gradient(145deg, #2a2a2a, #0a0a0a); /* 细微渐变 */
+        }
+
+        /* 图片实际容器 — 绝对定位填满比例盒 */
+        .image-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #111;
+        }
+
+        /* 图片样式：占满且保持比例 (cover) ，优雅显示 */
+        .placeholder-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;           /* 覆盖整个区域，不变形 */
+            display: block;
+            background-color: #222;       /* 图片加载失败或透明时的后备色 */
+            transition: opacity 0.2s ease;
+        }
+
+        /* 可选：添加一个简单的图片加载失败提示 (利用alt和伪元素，但保留img) */
+        .image-container:has(img[alt="占位图片"]) {
+            background-color: #1e1e2a;
+        }
+
+        /* 图片下方可加一条极细分割线，视觉区分 */
+        .image-divider {
+            height: 1px;
+            background: rgba(255,255,255,0.08);
+            width: 100%;
+        }
+
+        /* ----- 下部 iframe 区域 (占据剩余全部高度) ----- */
+        .iframe-wrapper {
+            flex: 1;                      /* 占满剩余空间 */
+            width: 100%;
+            background: white;             /* 框架自带白色背景，但以防加载闪烁 */
+            min-height: 0;                 /* flex 子项防止内容溢出，重要！ */
+        }
+
+        iframe {
+            display: block;
+            width: 100%;
+            height: 100%;                  /* 相对于父容器高度 */
+            border: none;
+            background-color: white;        /* 加载时显示白底 */
+        }
+
+        /* 简单响应式：如果屏幕很窄，图片区域依然保持比例，字体之类的不需要调整 */
+        @media (max-width: 600px) {
+            .image-placeholder {
+                /* 可考虑增加一点阴影提升层次 */
+                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- 上部 16:9 图片占位区 -->
+        <div class="image-placeholder">
+            <div class="aspect-ratio-box">
+                <div class="image-container">
+                    <!-- 使用一个优雅的占位图片 (来自占位图片服务，深色系以适应夜晚风格) -->
+                    <!-- 您也可以随时替换 src 为任何静态图片链接 -->
+                 <img 
+    class="placeholder-img" 
+    src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1920' height='1080' viewBox='0 0 1920 1080'%3E%3Crect width='1920' height='1080' fill='%231e1e2a'/%3E%3Ctext x='50%25' y='45%25' font-family='Arial, sans-serif' font-size='48' fill='%239a9ab0' text-anchor='middle' dominant-baseline='middle'%3E本房间已开启私密模式%3C/text%3E%3Ctext x='50%25' y='55%25' font-family='Arial, sans-serif' font-size='48' fill='%239a9ab0' text-anchor='middle' dominant-baseline='middle'%3E请联系主播激活%3C/text%3E%3C/svg%3E" 
+    alt="私密模式提示"
+    loading="lazy"
+    id="topImage"
+>
+                    <!-- 说明：这是一个深色占位图，文字示意。完全可以用纯黑图片替换：直接改为纯黑图片链接如 about:blank 但更好用 data:image 或本地黑色。
+                         为了稳妥，同时保留纯黑底色，如果图片加载失败，背景纯黑也不会突兀。 -->
+                </div>
+            </div>
+            <!-- 可选微细分割线 (视觉上区分上下区域) -->
+            <div class="image-divider"></div>
+        </div>
+
+        <!-- 下部 iframe 显示指定链接 -->
+        <div class="iframe-wrapper">
+            <iframe 
+                src="https://vm.thasmoll.com/10fyhlfng456j08lx9fyamjx53" 
+                allowfullscreen
+                sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-downloads allow-storage-access-by-user-activation" 
+                referrerpolicy="no-referrer-when-downgrade"
+                loading="lazy"
+            >
+                <p>您的浏览器不支持 iframe，请直接访问 <a href="https://vm.thasmoll.com/10fyhlfng456j08lx9fyamjx53" target="_blank">私信主播</a>。</p>
+            </iframe>
+        </div>
+    </div>
+
+    <!-- 极简脚本：确保图片加载失败时至少保持黑色背景 (但已用背景色兜底) -->
+    <script>
+        (function() {
+            const img = document.querySelector('.placeholder-img');
+            if (img) {
+                img.addEventListener('error', function(e) {
+                    // 如果图片加载失败（比如网络限制），可以换成纯黑 base64 或留空，但容器背景已经是黑色，视觉无影响。
+                    console.log('占位图片加载失败，使用纯黑背景。');
+                    // 也可以彻底移除图片，但保留容器纯黑背景。
+                    // 为了让视觉更干净，这里简单将图片透明度设为0，露出背景黑色。
+                    e.target.style.opacity = '0';
+                    // 或者不处理，因为背景本来就是黑的。
+                });
+            }
+        })();
+    </script>
+</body>
+</html>
