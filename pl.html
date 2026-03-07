@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>直播间评论</title>
+    <style>
+        /* ----- 基础重置 & 深色直播间氛围 (保留原设计) ----- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body, html {
+            height: 100%;
+            overflow: hidden;           
+            background-color: #000;
+            font-family: 'Segoe UI', Roboto, system-ui, -apple-system, sans-serif;
+        }
+
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: 100vw;
+            background: #0b0b0b;
+        }
+
+        /* ----- 上部 16:9 图片占位区 (完全保留) ----- */
+        .image-placeholder {
+            flex: 0 0 auto;
+            width: 100%;
+            background-color: #0a0a0a;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+            z-index: 5;
+        }
+
+        .aspect-ratio-box {
+            width: 100%;
+            padding-top: 56.25%;            /* 16:9 */
+            position: relative;
+            background: #080808;
+        }
+
+        .image-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #111;
+        }
+
+        .placeholder-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            background: #1a1a2a;
+            transition: opacity 0.2s;
+        }
+
+        .image-divider {
+            height: 2px;
+            background: linear-gradient(90deg, #ff3366, #6b30ff, #3366ff);
+            width: 100%;
+            opacity: 0.7;
+        }
+
+        /* ----- 警告弹窗 (默认display:none，完全不占位) ----- */
+        .image-level-toast {
+            display: none;                    /* 默认隐藏，不占任何空间 */
+            width: 100%;
+            background: rgba(25, 20, 30, 0.98);
+            backdrop-filter: blur(16px);
+            border: 1px solid #ff3b5c;
+            border-left: 8px solid #ff3b5c;
+            border-radius: 0 0 16px 16px;
+            padding: 16px 22px;
+            color: white;
+            font-size: 0.95rem;
+            box-shadow: 0 16px 30px rgba(0,0,0,0.8), 0 0 20px rgba(255, 59, 92, 0.4);
+            z-index: 20;                   
+            line-height: 1.5;
+            position: relative;
+        }
+
+        .image-level-toast.show {
+            display: block;                   /* 显示时出现，挤开下方内容 */
+        }
+
+        /* 内部布局 */
+        .toast-title {
+            font-weight: 700;
+            color: #ff7b9c;
+            margin-bottom: 8px;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toast-title i {
+            font-size: 1.3rem;
+        }
+
+        .toast-message {
+            color: #ddd;
+            margin-bottom: 12px;
+            word-break: break-word;
+        }
+
+        .toast-warning {
+            color: #ffb86b;
+            font-weight: 500;
+            background: rgba(255, 180, 70, 0.15);
+            padding: 8px 12px;
+            border-radius: 12px;
+            border-left: 3px solid #ffa755;
+            font-size: 0.85rem;
+        }
+
+        .toast-close {
+            position: absolute;
+            top: 14px;
+            right: 18px;
+            color: #aaa;
+            font-size: 20px;
+            cursor: pointer;
+            transition: color 0.1s;
+            line-height: 1;
+        }
+        .toast-close:hover {
+            color: white;
+        }
+
+        /* ----- 下部：模仿直播间评论区 (滚动区) ----- */
+        .commentary-area {
+            flex: 1;                        
+            width: 100%;
+            background: #0f0f0f;             
+            min-height: 0;                   
+            display: flex;
+            flex-direction: column;
+            padding: 12px 16px 8px 16px;
+            position: relative;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+
+        /* 标题栏 */
+        .comment-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            color: #ddd;
+            font-size: 0.9rem;
+            font-weight: 500;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            flex-shrink: 0;
+        }
+
+        .comment-header-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .live-badge {
+            background: #ff3b5c;
+            color: white;
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            box-shadow: 0 0 8px #ff3b5c88;
+        }
+
+        .viewer-count {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: #2a2a2a;
+            padding: 2px 10px;
+            border-radius: 30px;
+            color: #9d9dff;
+            font-size: 0.75rem;
+        }
+
+        /* 随机滚动消息容器 — 滚动区 (从下往上堆积) */
+        .comment-scroll-container {
+            flex: 1;
+            overflow-y: auto;                
+            scrollbar-width: none;            
+            -ms-overflow-style: none;         
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding-right: 4px;               
+            mask-image: linear-gradient(to bottom, transparent, black 8px, black 95%, transparent);
+        }
+
+        .comment-scroll-container::-webkit-scrollbar {
+            display: none;                    
+        }
+
+        /* 每一条评论气泡 — 添加点击警告 (整个条目可点) */
+        .comment-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            background: rgba(30, 30, 40, 0.8);
+            backdrop-filter: blur(2px);
+            padding: 8px 12px;
+            border-radius: 18px 18px 18px 6px;
+            border-left: 3px solid #ff5e7c;    
+            box-shadow: 0 2px 8px rgba(0,0,0,0.6);
+            color: #f0f0f0;
+            font-size: 0.9rem;
+            word-break: break-word;
+            transition: transform 0.15s, background 0.2s;
+            animation: messageAppear 0.25s ease-out;
+            flex-shrink: 0;
+            cursor: pointer;                  /* 手型，表明可点击触发警告 */
+        }
+
+        .comment-item:hover {
+            background: rgba(50, 50, 65, 0.9);
+            border-left-color: #ff99bb;
+        }
+
+        /* 不同用户左边界颜色不同 */
+        .comment-item:nth-child(6n+1) { border-left-color: #ff8a5c; }
+        .comment-item:nth-child(6n+2) { border-left-color: #5ca0ff; }
+        .comment-item:nth-child(6n+3) { border-left-color: #b46eff; }
+        .comment-item:nth-child(6n+4) { border-left-color: #2cd4ae; }
+        .comment-item:nth-child(6n+5) { border-left-color: #ffd166; }
+        .comment-item:nth-child(6n)   { border-left-color: #ff6f9c; }
+
+        .comment-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: linear-gradient(145deg, #3a3a55, #24243a);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.85rem;
+            color: white;
+            text-shadow: 0 2px 4px black;
+            flex-shrink: 0;
+            text-transform: uppercase;
+            border: 1px solid rgba(255,255,255,0.2);
+            pointer-events: none;            /* 点击头像也触发父级点击事件 */
+        }
+
+        .comment-content {
+            flex: 1;
+            line-height: 1.4;
+            pointer-events: none;            /* 点击文本区域触发父级 */
+        }
+
+        .comment-meta {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            margin-bottom: 3px;
+            flex-wrap: wrap;
+        }
+
+        .comment-name {
+            font-weight: 600;
+            color: #d4bfff;
+            font-size: 0.8rem;
+        }
+
+        .comment-time {
+            font-size: 0.6rem;
+            color: #999;
+            letter-spacing: 0.3px;
+        }
+
+        .comment-text {
+            color: #f5f5f5;
+            font-size: 0.85rem;
+            word-break: break-word;
+            text-shadow: 0 1px 2px black;
+        }
+
+        /* 底部假输入框 — 点击触发警告 */
+        .comment-footer {
+            flex-shrink: 0;
+            margin-top: 10px;
+            height: 36px;                    
+            background: rgba(30,30,40,0.8);
+            border-radius: 40px;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            color: #aaa;
+            font-size: 0.8rem;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255,255,255,0.08);
+            cursor: pointer;                  
+            transition: background 0.15s, border-color 0.15s;
+            user-select: none;
+        }
+
+        .comment-footer:hover {
+            background: rgba(50,50,65,0.9);
+            border-color: rgba(255,100,100,0.3);
+        }
+
+        .comment-footer span::before {
+            content: "💬 说点什么...";
+            opacity: 0.8;
+        }
+
+        /* 进场动画 (用于评论) */
+        @keyframes messageAppear {
+            0% { opacity: 0; transform: translateY(15px) scale(0.95); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- 上部 16:9 图片占位区 -->
+        <div class="image-placeholder">
+            <div class="aspect-ratio-box">
+                <div class="image-container">
+          <img 
+    class="placeholder-img" 
+    src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1920' height='1080' viewBox='0 0 1920 1080'%3E%3Crect width='1920' height='1080' fill='%231e1e2a'/%3E%3Ctext x='50%25' y='45%25' font-family='Arial, sans-serif' font-size='48' fill='%239a9ab0' text-anchor='middle' dominant-baseline='middle'%3E本房间已开启私密模式%3C/text%3E%3Ctext x='50%25' y='55%25' font-family='Arial, sans-serif' font-size='48' fill='%239a9ab0' text-anchor='middle' dominant-baseline='middle'%3E请联系主播激活%3C/text%3E%3C/svg%3E" 
+    alt="私密模式提示"
+    loading="lazy"
+    id="topImage"
+>
+                </div>
+            </div>
+            <div class="image-divider"></div>
+        </div>
+
+        <!-- 警告弹窗直接放在图片下方 (默认display:none，不占位) -->
+        <div id="imageToast" class="image-level-toast">
+            <div class="toast-close" id="closeToastBtn">✕</div>
+            <div class="toast-title">
+                <i>🔒</i> 【游客】禁止互动！
+            </div>
+            <div class="toast-message">
+                您需要在<strong>私密房内</strong>才可以发送评论。<br>
+                当前身份为<strong style="color:#ff6f9c;">【游客】</strong>，仅可围观，无法互动。
+            </div>
+            <div class="toast-warning">
+                ⚠️ 警告：游客长时间围观将被<strong style="color:#ff6f9c;">踢出直播间</strong>禁止<strong style="color:#ff9f6f;">观看</strong>
+            </div>
+        </div>
+
+        <!-- 下部：评论区模块 -->
+        <div class="commentary-area">
+            <div class="comment-header">
+                <div class="comment-header-left">
+                    <span class="live-badge">LIVE</span>
+                    <span>评论区 · 私密房永久可用</span>
+                </div>
+                <div class="viewer-count">
+                    <i>👥</i> <span id="viewerCount">298</span> 人
+                </div>
+            </div>
+
+            <!-- 滚动消息容器 -->
+            <div class="comment-scroll-container" id="commentScroll"></div>
+
+            <!-- 底部假输入框 — 点击触发警告 -->
+            <div class="comment-footer" id="clickableCommentFooter">
+                <span></span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // 图片加载失败处理
+            const img = document.querySelector('.placeholder-img');
+            if (img) {
+                img.addEventListener('error', function(e) {
+                    e.target.style.opacity = '0';
+                });
+            }
+
+            // ---------- 生成200+ 评论数据 (普通繁体男性名 + 普通英文男性名，无名人) ----------
+            // 普通繁体男性名字池 (避免名人)
+            const traditionalMaleNames = [
+                '陳大文', '張志明', '永業', '王國棟', '黃家成', '何國強', '吳家輝', '鄭志偉', '林建明', '羅永賢',
+                '梁永雄', '郭志強', '謝永康', '曾偉業', '蔡華仁', '鄧志雄', '馮永發', '蘇志威', '譚明明', '彭志遠',
+                '鍾國斌', '劉志榮', '陳永仁', '張國華', '李國能', '王志強', '黃國英', '何志平', '吳國偉', '*成',
+                '林永光', '羅國強', '梁志堅', '郭永昌', '謝國華', '志文', '蔡永康', '鄧國棟', '馮志強', '蘇永權',
+                '譚偉', '彭志樑', '鍾志光', '劉永健', '陳強', '張志豪', '李樑', '王永全', '黃志', '何賢樑'
+            ];
+
+            // 普通英文男性名字池 (避免常見名人名，使用普通名字)
+            const englishMaleNames = [
+                'Aaron', 'Adam', 'Adrian', 'Alan', 'Albert', 'Alex', 'Alfred', 'Andrew', 'Andy', 'Anthony',
+                'Barry', 'Ben', 'Bernard', 'Bill', 'Bob', 'Brad', 'Brendan', 'Brett', 'Brian', 'Bruce',
+                'Carl', 'Cary', 'Chad', 'Charles', 'Chris', 'Christian', 'Christopher', 'Cliff', 'Clinton', 'Craig',
+                'Dale', 'Dan', 'Daniel', 'Darren', 'Dave', 'David', 'Dean', 'Dennis', 'Derek', 'Donald',
+                'Doug', 'Duncan', 'Dustin', 'Dylan', 'Eddie', 'Edgar', 'Edmund', 'Edward', 'Edwin', 'Eli'
+            ];
+
+            // 合并名字池 (繁体男 + 英文男)
+            const maleNamePool = [...traditionalMaleNames, ...englishMaleNames];
+
+            const msgPool = [
+                '來了來了！', '哈哈這個好', '666666', '主播厲害呀', '姐姐你太會了吧',
+                '？？？', '剛進來，發生了什麼', '昨天喷出来的好看', '开始今天的吧', '男主角什麽時候來',
+                '好想你在我身邊', '看蝴蝶刷什麽', '還沒開始嗎', '？？？我錯過了什麼',
+                '精彩開始了嗎', '又大又白','寶寶','好多熟悉的人都在啊', '前方高能', '能不能約', '細節到位',
+                '昨天謝完才睡', '今晚想要嗎', '昨天的大黑牛', '？？？？？？',
+                '再來一遍', '大哥眞的享受了', '要听声音', '鐵舌頭', '開始今天的吧', '今晚通宵', '困了但堅持',
+                '有沒有課代表', '課代表在此', '總結：牛逼', '我服了', '牛逼plus',
+                '這誰頂得住', '我來晚了嗎？', '客廳又要遭殃了', '看看這', '愛了愛了', '我都看了好幾天了',
+                '手紙不够用了', '可以了', '我怎麽聽不到聲音', '坐上去', '哈哈哈哈', '對我撒个嬌', '妈妈', '老婆', '綫下嗎', 
+                '眞辛苦','馋死他们了','掰開看看洞','太用勁了吧','馬上到了寶貝','弟弟在等你喚醒','雙手打開','喷水','今天還能一對一嗎','換玩具了嗎',
+                '新人报道','刚进来','總算搞好了','速度快一点','別等他們了','忍不住了','戰袍沒有昨天的好看','那不是水','你老公呢','要开始了吗'
+            ];
+
+            const rand = (arr) => arr[Math.floor(Math.random() * arr.length)];
+            const randNum = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+            const COMMENT_COUNT = 210; // 210条左右
+            const comments = [];
+
+            // 生成5分钟内的随机时间 (0-5分钟)
+            function getRandomRecentTime() {
+                const minutes = randNum(0, 5); // 0到5分钟
+                if (minutes === 0) {
+                    // 30%的概率显示"刚刚"
+                    return Math.random() < 0.3 ? '剛剛' : '幾秒前';
+                } else {
+                    return `${minutes}分鐘前`;
+                }
+            }
+
+            for (let i = 0; i < COMMENT_COUNT; i++) {
+                const name = rand(maleNamePool); // 从合并的男性名字池中随机选取
+                // 偶尔加个数字让名字更多样 (可选)
+                const finalName = Math.random() > 0.85 ? name + randNum(1, 99) : name;
+                
+                // 生成消息 (可能拼接两条)
+                let message = rand(msgPool);
+                if (Math.random() > 0.7) {
+                    message += ' ' + rand(msgPool);
+                }
+                
+                // 生成5分钟内的随机时间
+                const timeStr = getRandomRecentTime();
+                
+                // 头像字母: 如果是英文名取首字母大写，如果是中文名取第一个汉字(但显示为英文首字母风格)
+                let avatarLetter;
+                if (/[a-zA-Z]/.test(finalName.charAt(0))) {
+                    avatarLetter = finalName.charAt(0).toUpperCase();
+                } else {
+                    // 中文名取第一个汉字拼音首字母？太复杂，随机给个字母
+                    avatarLetter = String.fromCharCode(65 + Math.floor(Math.random() * 26));
+                }
+
+                comments.push({
+                    id: i,
+                    user: finalName,
+                    avatar: avatarLetter,
+                    text: message,
+                    time: timeStr,
+                });
+            }
+
+            // 额外再混入几条"剛剛"的真实感
+            for (let i = 0; i < 8; i++) {
+                comments.push({
+                    id: COMMENT_COUNT + i,
+                    user: rand(maleNamePool) + (Math.random() > 0.6 ? randNum(10, 99) : ''),
+                    avatar: String.fromCharCode(65 + Math.floor(Math.random() * 26)),
+                    text: '🔥 ' + rand(msgPool) + ' 🔥',
+                    time: '剛剛',
+                });
+            }
+
+            // 打乱整个评论池，用于随机抽取
+            let randomPool = [...comments];
+            function shufflePool() {
+                randomPool = [...comments].sort(() => Math.random() - 0.5);
+            }
+            shufflePool();
+
+            // 获取容器
+            const scrollContainer = document.getElementById('commentScroll');
+            if (!scrollContainer) return;
+
+            // 创建单条评论DOM
+            function createCommentElement(cmt) {
+                const div = document.createElement('div');
+                div.className = 'comment-item';
+                div.setAttribute('data-id', cmt.id);
+
+                const avatarDiv = document.createElement('div');
+                avatarDiv.className = 'comment-avatar';
+                avatarDiv.textContent = cmt.avatar || '?';
+
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'comment-content';
+
+                const metaDiv = document.createElement('div');
+                metaDiv.className = 'comment-meta';
+                metaDiv.innerHTML = `<span class="comment-name">${cmt.user}</span><span class="comment-time">${cmt.time}</span>`;
+
+                const textDiv = document.createElement('div');
+                textDiv.className = 'comment-text';
+                textDiv.textContent = cmt.text;
+
+                contentDiv.appendChild(metaDiv);
+                contentDiv.appendChild(textDiv);
+
+                div.appendChild(avatarDiv);
+                div.appendChild(contentDiv);
+
+                // 添加点击事件监听：点击任何评论触发警告
+                div.addEventListener('click', (e) => {
+                    e.stopPropagation();  // 防止冒泡到document
+                    showToast();
+                });
+
+                return div;
+            }
+
+            // 追加一条评论到容器末尾
+            function appendOneComment(cmt) {
+                const elem = createCommentElement(cmt);
+                scrollContainer.appendChild(elem);
+            }
+
+            // 移除最顶部的第一条评论
+            function removeTopComment() {
+                if (scrollContainer.children.length > 0) {
+                    scrollContainer.removeChild(scrollContainer.firstChild);
+                }
+            }
+
+            // ----- 评论滚动逻辑 (完全保留上次规则) -----
+            let poolIndex = 0;
+            function getNextComment() {
+                const cmt = randomPool[poolIndex % randomPool.length];
+                poolIndex = (poolIndex + 1) % randomPool.length;
+                return cmt;
+            }
+
+            const MAX_VISIBLE = 18;
+            let userScrolledAway = false;
+
+            // 增强版追加评论（带滚动判断）
+            function addCommentAndMaintain(cmt) {
+                appendOneComment(cmt);
+                while (scrollContainer.children.length > MAX_VISIBLE) {
+                    removeTopComment();
+                }
+                if (!userScrolledAway) {
+                    scrollContainer.scrollTop = scrollContainer.scrollHeight;
+                }
+            }
+
+            // 滚动监听
+            scrollContainer.addEventListener('scroll', () => {
+                const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
+                const isNearBottom = (scrollHeight - scrollTop - clientHeight) < 40;
+                userScrolledAway = !isNearBottom;
+            });
+
+            // 初始化评论 (前三条固定0.5s，后续随机)
+            scrollContainer.innerHTML = '';
+            poolIndex = 0;
+            userScrolledAway = false;
+
+            // 第一条立即
+            addCommentAndMaintain(getNextComment());
+            // 第二条 0.5s
+            setTimeout(() => {
+                addCommentAndMaintain(getNextComment());
+            }, 500);
+            // 第三条 1.0s
+            setTimeout(() => {
+                addCommentAndMaintain(getNextComment());
+            }, 1000);
+            // 1.0s后启动随机循环
+            setTimeout(() => {
+                (function randomLoop() {
+                    const interval = randNum(800, 3500);
+                    setTimeout(() => {
+                        addCommentAndMaintain(getNextComment());
+                        randomLoop();
+                    }, interval);
+                })();
+            }, 1000);
+
+            // ---------- 在线人数控制在300左右，每次变动±10 ----------
+            const viewerSpan = document.getElementById('viewerCount');
+            if (viewerSpan) {
+                // 初始值设为298 (300左右)
+                let currentViewers = 298;
+                viewerSpan.textContent = currentViewers;
+
+                // 每6-10秒变动一次，变化范围 -10 到 +10
+                setInterval(() => {
+                    // 生成 -10 到 10 的随机变动
+                    const change = randNum(-10, 10);
+                    let newCount = currentViewers + change;
+                    
+                    // 确保人数在合理范围内 (比如 280-320)
+                    if (newCount < 280) newCount = 280;
+                    if (newCount > 320) newCount = 320;
+                    
+                    currentViewers = newCount;
+                    viewerSpan.textContent = currentViewers;
+                }, randNum(6000, 10000)); // 随机6-10秒变动一次
+            }
+
+            // ---------- 警告弹窗控制 (图片下方，默认display:none) ----------
+            const toast = document.getElementById('imageToast');
+            const closeBtn = document.getElementById('closeToastBtn');
+            const footer = document.getElementById('clickableCommentFooter');
+
+            // 显示弹窗 (添加show类，display从none变为block)
+            window.showToast = function() {
+                if (!toast) return;
+                toast.classList.add('show');
+            };
+
+            // 隐藏弹窗
+            function hideToast() {
+                toast.classList.remove('show');
+            }
+
+            // 底部输入框点击显示
+            if (footer) {
+                footer.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    showToast();
+                });
+            }
+
+            // 关闭按钮
+            if (closeBtn) {
+                closeBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    hideToast();
+                });
+            }
+
+            // 点击toast内部不关闭
+            toast.addEventListener('click', (e) => e.stopPropagation());
+
+            // 点击其他区域关闭toast
+            document.addEventListener('click', (e) => {
+                // 如果toast显示，且点击的不是toast内部，也不是footer（已单独处理），则关闭
+                if (toast && toast.classList.contains('show')) {
+                    // 评论点击时由于stopPropagation不会到达这里，所以不会误关
+                    if (!toast.contains(e.target)) {
+                        hideToast();
+                    }
+                }
+            });
+
+        })();
+    </script>
+</body>
+
+</html>
