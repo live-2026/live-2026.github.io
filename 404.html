@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 · 页面迷路了</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(145deg, #f6f9fc 0%, #e9f0f5 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            padding: 1.5rem;
+            margin: 0;
+        }
+
+        .card {
+            max-width: 720px;
+            width: 100%;
+            background: rgba(255,255,255,0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 48px;
+            box-shadow: 0 25px 50px -12px rgba(0, 20, 30, 0.25), inset 0 1px 2px rgba(255,255,255,0.8);
+            padding: 3rem 2.5rem;
+            border: 1px solid rgba(255,255,255,0.6);
+            transition: all 0.2s ease;
+        }
+
+        /* 装饰小图标 */
+        .compass {
+            font-size: 5rem;
+            line-height: 1;
+            margin-bottom: 0.5rem;
+            filter: drop-shadow(0 8px 12px rgba(0,40,60,0.15));
+            display: inline-block;
+            transform-origin: center;
+            animation: softSpin 20s infinite linear;
+        }
+        @keyframes softSpin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        h1 {
+            font-size: 5.5rem;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            line-height: 1;
+            color: #1a3442;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 2px 5px rgba(255,255,255,0.8);
+        }
+
+        .subtitle {
+            font-size: 1.8rem;
+            font-weight: 450;
+            color: #2c4c63;
+            margin-bottom: 1.25rem;
+            border-left: 5px solid #4f9da6;
+            padding-left: 1.5rem;
+            background: linear-gradient(90deg, rgba(79,157,166,0.1), transparent);
+        }
+
+        .message {
+            font-size: 1.2rem;
+            color: #2a4050;
+            margin: 2rem 0 2.2rem 0;
+            background: rgba(255,255,255,0.5);
+            padding: 1.25rem 1.8rem;
+            border-radius: 60px;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.02);
+            border: 1px solid rgba(255,255,255,0.9);
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+
+        .timer-chip {
+            background: #1e3e52;
+            color: white;
+            padding: 0.5rem 1.5rem;
+            border-radius: 40px;
+            font-weight: 500;
+            font-size: 1.2rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            letter-spacing: 0.3px;
+            box-shadow: 0 8px 16px -6px #1e3e5230;
+            white-space: nowrap;
+        }
+
+        .timer-chip span {
+            background: #f5c572;
+            color: #1e2f3a;
+            padding: 0.2rem 0.8rem;
+            border-radius: 30px;
+            font-weight: 600;
+            min-width: 3.2rem;
+            text-align: center;
+            font-size: 1.3rem;
+            box-shadow: inset 0 -1px 2px rgba(0,0,0,0.1);
+        }
+
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.2rem;
+            margin-top: 0.5rem;
+            justify-content: flex-start;
+        }
+
+        .btn {
+            border: none;
+            background: white;
+            padding: 1rem 2.4rem;
+            border-radius: 50px;
+            font-size: 1.2rem;
+            font-weight: 550;
+            color: #1e3e52;
+            cursor: pointer;
+            transition: 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            box-shadow: 0 8px 18px -6px rgba(0,60,80,0.2), 0 0 0 1px rgba(148,184,194,0.3);
+            border: 1px solid rgba(255,255,255,0.7);
+            backdrop-filter: blur(2px);
+            text-decoration: none;
+            line-height: 1.2;
+        }
+
+        .btn-primary {
+            background: #1e3e52;
+            color: white;
+            box-shadow: 0 12px 22px -10px #1e3e52, 0 0 0 1px #2e5e78 inset;
+        }
+
+        .btn-primary:hover {
+            background: #244f68;
+            transform: scale(1.02);
+            box-shadow: 0 18px 28px -12px #16303f;
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.85);
+            color: #1d384a;
+        }
+
+        .btn-secondary:hover {
+            background: white;
+            transform: scale(1.02);
+            border-color: #4f9da6;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .footer-note {
+            margin-top: 2.8rem;
+            color: #577a8b;
+            font-size: 1rem;
+            border-top: 1px dashed #b4d0da;
+            padding-top: 1.5rem;
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .links a {
+            color: #2c6b7a;
+            text-decoration: none;
+            font-weight: 500;
+            border-bottom: 1px dotted #7faab6;
+        }
+
+        .links a:hover {
+            color: #174450;
+            border-bottom: 2px solid #1e5f68;
+        }
+
+        /* 小屏适配 */
+        @media (max-width: 550px) {
+            .card { padding: 2rem 1.5rem; }
+            h1 { font-size: 4rem; }
+            .subtitle { font-size: 1.4rem; }
+            .message { flex-direction: column; align-items: flex-start; }
+            .timer-chip { width: 100%; justify-content: center; }
+        }
+
+        /* 隐藏倒计时数字装饰 */
+        #counter {
+            font-variant-numeric: tabular-nums;
+            transition: all 0.1s ease;
+        }
+    </style>
+    <!-- 防止用户不小心返回时刷新倒计时，但保留功能 -->
+</head>
+<body>
+    <div class="card" role="main" aria-labelledby="error-heading">
+        <div class="compass" aria-hidden="true">🧭</div>
+        <h1 id="error-heading">404</h1>
+        <div class="subtitle">轻舟 · 失联海域</div>
+
+        <div class="message">
+            <span style="flex:1;">🌊 您要找的页面已经漂走了</span>
+            <div class="timer-chip" aria-live="polite">
+                <span id="counter">5</span> 秒后返回首页
+            </div>
+        </div>
+
+        <div class="button-group">
+            <!-- 返回上一页按钮：保留历史记录后退功能 -->
+            <button class="btn btn-secondary" id="goBackBtn" title="返回上一页 (如果可直接返回)">
+                <span>←</span> 返回上一页
+            </button>
+            <!-- 立即返回首页按钮 -->
+            <a href="/" class="btn btn-primary" id="homeLink">
+                🏠 立即回首页
+            </a>
+        </div>
+
+        <div class="footer-note">
+            <span style="font-size:0.95rem; opacity:0.75;">
+                ⏳ 5秒自动航行至港湾
+            </span>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            'use strict';
+
+            // 倒计时持续时间 (秒)
+            const COUNTDOWN_START = 5;
+            let remaining = COUNTDOWN_START;
+            
+            // 获取显示倒计时的元素
+            const counterEl = document.getElementById('counter');
+            // 获取首页链接 (用于跳转)
+            const homeLink = document.getElementById('homeLink'); 
+            // 获取返回上一页按钮
+            const backBtn = document.getElementById('goBackBtn');
+
+            // 防止重复执行倒计时/跳转
+            let timerInterval = null;
+            let isRedirecting = false;       // 标记是否已经执行跳转
+            let countdownActive = true;       // 倒计时是否应当继续 (失活后清除定时器)
+
+            // 核心函数: 更新显示
+            function updateCounterDisplay(value) {
+                if (counterEl) {
+                    counterEl.textContent = value;
+                }
+            }
+
+            // 执行跳转首页 (由倒计时触发)
+            function performHomeRedirect() {
+                // 避免多次跳转 (例如被两个条件同时调用)
+                if (isRedirecting) return;
+                isRedirecting = true;
+                countdownActive = false;   // 停掉后续倒计时
+
+                if (timerInterval) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                }
+
+                // 跳转到首页 (相对路径 "/")
+                window.location.href = '/';
+            }
+
+            // 重置并停止倒计时 (当用户主动点击按钮时调用)
+            function stopCountdownAndCancelRedirect() {
+                if (!countdownActive) return;  // 已经跳转过或手动取消了
+
+                countdownActive = false;
+                if (timerInterval) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                }
+                // 把倒计时显示为 "—" 或者保持不变？为了视觉友好，改成 '—' 表示取消自动跳转
+                if (counterEl) {
+                    counterEl.textContent = '—';
+                }
+            }
+
+            // 重新激活倒计时的函数 (如果需要可以加，但本场景用不到)
+            // 这里只在初始化时启动
+
+            // 初始化倒计时
+            function startCountdown() {
+                if (timerInterval) clearInterval(timerInterval);
+                
+                // 每次启动时重置状态
+                remaining = COUNTDOWN_START;
+                updateCounterDisplay(remaining);
+                isRedirecting = false;
+                countdownActive = true;
+
+                timerInterval = setInterval(() => {
+                    // 如果倒计时被标记为无效 (比如点击返回上一页后) 或者已经跳转过，则清除定时器
+                    if (!countdownActive || isRedirecting) {
+                        if (timerInterval) {
+                            clearInterval(timerInterval);
+                            timerInterval = null;
+                        }
+                        return;
+                    }
+
+                    remaining -= 1;
+                    updateCounterDisplay(remaining);
+
+                    // 倒计时结束，执行跳转
+                    if (remaining <= 0) {
+                        // 停止计时器，执行跳转
+                        if (timerInterval) {
+                            clearInterval(timerInterval);
+                            timerInterval = null;
+                        }
+                        // 只要没有被标记为不跳转，且remaining <=0，跳转首页
+                        if (countdownActive && !isRedirecting) {
+                            performHomeRedirect();
+                        }
+                    }
+                }, 1000);
+            }
+
+            // --- 事件绑定 ---
+
+            // 1. 返回上一页按钮
+            if (backBtn) {
+                backBtn.addEventListener('click', function(event) {
+                    // 停止倒计时，取消即将发生的自动跳转首页
+                    stopCountdownAndCancelRedirect();
+
+                    // 尝试返回上一页 (如果历史记录存在)
+                    if (window.history.length > 1) {
+                        // 有上一页可返
+                        window.history.back();
+                    } else {
+                        // 如果没有上一页，作为优雅降级，可以提示或者跳转首页
+                        // 但这里我们直接跳转首页，并给予提示 (alert不合适，静默跳转)
+                        // 为了更好体验: 直接location.href='/'
+                        window.location.href = '/';
+                    }
+                });
+            }
+
+            // 2. 首页链接本身具有href，但为了不让点击后倒计时继续尝试跳转，我们也要停止倒计时
+            //   但注意点击<a>会直接导航，不影响；不过如果用户是通过一些特殊方式(长按新窗口打开)没关系。
+            //   为了严谨: 点击首页链接后我们不希望残余定时器做任何事，同样清除。
+            if (homeLink) {
+                homeLink.addEventListener('click', function() {
+                    // 停止倒计时，即将跳转首页(但链接本身会导航，这里只是清除后台任务)
+                    stopCountdownAndCancelRedirect();
+                    // 不需要手动跳转，href已处理
+                });
+            }
+
+            // 3. 另外，如果用户通过浏览器前进后退到达本页，倒计时重新初始化。
+            //   监听页面可见性变化或者直接启动即可。
+            // 启动倒计时
+            startCountdown();
+
+            // 可选: 如果页面被缓存(bfcache) 重启倒计时
+            window.addEventListener('pageshow', function(event) {
+                // 如果是从缓存加载的页面，有可能之前的定时器还在，清除并重启
+                if (event.persisted) {
+                    // 清理之前的定时器
+                    if (timerInterval) {
+                        clearInterval(timerInterval);
+                        timerInterval = null;
+                    }
+                    // 重置状态
+                    remaining = COUNTDOWN_START;
+                    isRedirecting = false;
+                    countdownActive = true;
+                    updateCounterDisplay(remaining);
+                    startCountdown(); // 重新开始
+                }
+            });
+
+            // 用户可能非常快速连续点击返回上一页，不再额外处理。
+        })();
+    </script>
+
+    <!-- 保证返回上一页在无法返回时降级；同时展示清晰的操作提示 -->
+    <!-- 404页面同时兼容静态托管：所有链接均使用相对根路径 -->
+</body>
+</html>
