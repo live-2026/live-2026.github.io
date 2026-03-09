@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>· 主播专场直播 ·</title>
+    <style>
+        /* ===== 全局样式 (完全保留原样) ===== */
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            height: 100%;
+        }
+        .floating-window {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 0;
+            padding-top: 56.25%;
+            background-color: black;
+            z-index: 1000;
+        }
+        .floating-window video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            margin-top: -10px;
+        }
+
+        /* ===== 右侧悬浮按钮 (完全保留) ===== */
+        .action-buttons {
+            position: fixed;
+            top: 50%;
+            right: 20px;
+            transform: translateY(-50%) translateY(140px);;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .action-btn {
+            width: 100px;
+            height: 50px;
+            border-radius: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            text-align: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+            border: 2px solid rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(5px);
+            color: white;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+            padding: 0 15px;
+            letter-spacing: 0.5px;
+        }
+        #soundToggleBtn { background: linear-gradient(145deg, #3a7bd5, #0052d4); border-color: rgba(255, 255, 255, 0.9); }
+        #soundToggleBtn.sound-on { background: linear-gradient(145deg, #f7971e, #ffd200); border-color: rgba(255, 255, 255, 0.95); }
+        #messageBtn { background: linear-gradient(145deg, #ff416c, #ff4b2b); border-color: rgba(255, 255, 255, 0.9); width: 100px; }
+        #privateMsgBtn { background: linear-gradient(145deg, #ff416c, #ff4b2b); border-color: rgba(255, 255, 255, 0.9); width: 100px; }
+        .action-btn:hover { transform: scale(1.05); border-color: #ffffff; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5); filter: brightness(1.1); }
+        .action-btn:active { transform: scale(0.98); }
+        .btn-content { display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .btn-icon { font-size: 18px; }
+
+        /* ===== 第一层弹窗 —— 底部显示，唯一弹窗 ===== */
+        .message-popup {
+            position: fixed;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            height: auto;
+            background: transparent;
+            display: none;
+            align-items: flex-end;
+            justify-content: center;
+            z-index: 3000;
+            pointer-events: none;
+        }
+        .message-popup.show {
+            display: flex;
+            animation: slideUp 0.25s ease-out;
+        }
+
+        .popup-content {
+            width: 96%;
+            max-width: 400px;
+            background: linear-gradient(145deg, #1e1e2f, #2d2d44);
+            border-radius: 28px 28px 0 0;
+            box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-bottom: none;
+            pointer-events: auto;
+            margin-bottom: 0;
+            overflow: hidden;
+        }
+
+        .popup-header {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 14px 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .popup-header h3 {
+            margin: 0;
+            font-size: 16px;
+            color: #fff;
+            background: linear-gradient(145deg, #ff416c, #ff4b2b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .close-popup {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            font-size: 22px;
+            cursor: pointer;
+            color: #fff;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .close-popup:hover { background: rgba(255, 255, 255, 0.2); transform: rotate(90deg); }
+
+        .popup-body { padding: 16px 18px 20px; }
+
+        .popup-body .highlight:first-of-type {
+            color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff !important;
+            background: none !important;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+        }
+        .highlight { font-size: 16px; font-weight: bold; margin: 0 0 12px; }
+
+        .download-section {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 12px;
+            border-radius: 16px;
+            margin: 0 0 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .download-title { color: #fff; font-size: 13px; margin-bottom: 8px; }
+        .download-title span { color: #ff416c; font-weight: bold; }
+        .download-btn {
+            background: linear-gradient(145deg, #00c6fb, #005bea);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 40px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+            box-shadow: 0 8px 15px rgba(0, 198, 251, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            margin-bottom: 6px;
+        }
+        .download-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 20px rgba(0, 198, 251, 0.4); }
+        .device-info { color: rgba(255, 255, 255, 0.4); font-size: 10px; margin-top: 4px; }
+
+        .register-note {
+            background: rgba(255,215,0,0.1);
+            border-left: 2px solid #ffd700;
+            padding: 8px 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            text-align: left;
+        }
+        .register-note p { margin: 2px 0; font-size: 12px; color: rgba(255, 255, 255, 0.9); }
+        .register-note .highlight-text { color: #ffd700; font-weight: bold; }
+
+        .screenshot-tip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 8px 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .screenshot-tip p { color: rgba(255, 255, 255, 0.9); font-size: 11px; line-height: 1.4; margin: 0; text-align: left; }
+        .screenshot-tip strong { font-size: 12px; color: #ffd700; }
+
+        .back-to-live-tip {
+            background: rgba(255, 215, 0, 0.15);
+            border: 1px solid rgba(255, 215, 0, 0.4);
+            padding: 16px 12px;
+            border-radius: 16px;
+            margin: 14px 0 8px;
+            text-align: center;
+            backdrop-filter: blur(5px);
+        }
+        .back-to-live-tip p {
+            color: #ffd700;
+            font-size: 14px;
+            font-weight: bold;
+            margin: 0 0 6px 0;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+        .back-to-live-tip .sub-tip {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 12px;
+            line-height: 1.5;
+        }
+        .back-to-live-tip .sub-tip span {
+            background: rgba(255,65,108,0.3);
+            padding: 2px 8px;
+            border-radius: 30px;
+            display: inline-block;
+            margin-top: 8px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .step-text { color: rgba(255, 255, 255, 0.5); font-size: 10px; margin-top: 8px; }
+        .bonus-text { color: #ffd700; font-size: 11px; font-weight: bold; }
+
+        /* 新提醒弹窗 (精简版) */
+        .reminder-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px;
+            background: linear-gradient(145deg, #2a2a3b, #1a1a2e);
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+            border: 1px solid rgba(255,215,0,0.5);
+            z-index: 3500;
+            display: none;
+            flex-direction: column;
+            padding: 24px 20px 20px;
+            text-align: center;
+            color: white;
+            pointer-events: auto;
+        }
+        .reminder-popup.show {
+            display: flex;
+            animation: fadeIn 0.2s;
+        }
+        .reminder-icon {
+            font-size: 48px;
+            margin-bottom: 8px;
+        }
+        .reminder-title {
+            font-size: 20px;
+            font-weight: bold;
+            background: linear-gradient(145deg, #ffd700, #ffb347);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+        .reminder-message {
+            font-size: 14px;
+            margin-bottom: 24px;
+            line-height: 1.5;
+            color: rgba(255,255,255,0.9);
+        }
+        .reminder-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+        .reminder-btn {
+            flex: 1;
+            padding: 12px 0;
+            border-radius: 40px;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            transition: 0.2s;
+            font-size: 14px;
+        }
+        .reminder-btn.close-btn {
+            background: rgba(255,255,255,0.15);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+        .reminder-btn.close-btn:hover {
+            background: rgba(255,255,255,0.25);
+        }
+        .reminder-btn.action-btn {
+            background: linear-gradient(145deg, #ff416c, #ff4b2b);
+            color: white;
+            border: none;
+            box-shadow: 0 8px 15px rgba(255,65,108,0.3);
+        }
+        .reminder-btn.action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 20px rgba(255,65,108,0.4);
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translate(-50%, -45%); }
+            to { opacity: 1; transform: translate(-50%, -50%); }
+        }
+
+        /* 动画 */
+        @keyframes slideUp {
+            from { transform: translateY(30px); opacity:0.6; }
+            to { transform: translateY(0); opacity:1; }
+        }
+
+        @media (max-width: 768px) {
+            .action-buttons { right:15px; gap:12px; }
+            .action-btn { width:85px; height:45px; font-size:12px; border-radius:22px; }
+            .popup-content { max-width: 380px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- 悬浮窗口 原样 -->
+    <div class="floating-window">
+        <video id="videoPlayer" autoplay muted playsinline webkit-playsinline controls>
+            <source src="https://livesec.mudu.tv/watch/4dqzgr.m3u8" type="application/x-mpegURL">
+        </video>
+    </div>
+
+    <!-- 主iframe (初始为pl.html) -->
+    <iframe id="mainIframe" src="pl.html" allowfullscreen></iframe>
+
+    <!-- 右侧悬浮按钮 原样 + 新增私信主播按钮 -->
+    <div class="action-buttons">
+        <div class="action-btn" id="soundToggleBtn">
+            <div class="btn-content"><span class="btn-icon" id="soundIcon">🔇</span><span class="btn-text" id="soundText">开启声音</span></div>
+        </div>
+        <div class="action-btn" id="messageBtn">
+            <div class="btn-content"><span class="btn-icon">🔞</span><span class="btn-text">进入私密房</span></div>
+        </div>
+        <div class="action-btn" id="privateMsgBtn">
+            <div class="btn-content"><span class="btn-icon">✉️</span><span class="btn-text">私信主播</span></div>
+        </div>
+    </div>
+
+    <!-- 底部引导弹窗 (私密互动空间) -->
+    <div class="message-popup" id="messagePopup">
+        <div class="popup-content">
+            <div class="popup-header">
+                <h3>💬 私密互动空间，需注册ID账号</h3>
+                <button class="close-popup" id="closePopup">×</button>
+            </div>
+            <div class="popup-body">
+                <div class="highlight">新用户加入需下载注册自己的ID账号<br>主播邀请你进入私密房间</div>
+                
+                <div class="download-section">
+                    <div class="download-title">📱 检测到您的手机未安装私密互动APP</div>
+                    <button class="download-btn" id="downloadAppBtn">
+                        <span class="download-icon">⬇️</span><span>点击下载APP并注册自己的ID</span>
+                    </button>
+                    <div class="device-info" id="deviceInfo">正在检测手机系统中...</div>
+                </div>
+                <div class="register-note">
+                    <p style="color:#ffd700; font-weight:bold; text-align:center;">📲 安装并注册自己ID账号后，按下方提示操作</p>
+                </div>
+                <div class="screenshot-tip">
+                     <p><strong>① 截图保存自己的ID账号</strong> 打开APP → 右下角“我的” → 截图你的ID页面</p>
+                </div>
+                <div class="screenshot-tip">
+                      <p><strong>② 回到本直播间</strong> 点私信主播发送你的ID账号截图即可进入私密房</p>
+                </div>
+                
+
+                <div class="step-text">
+                    <div class="bonus-text">🎁 激活后互动无限制 | 仅限18+海外华人</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 60秒提醒弹窗 (逻辑已更新) -->
+    <div class="reminder-popup" id="reminderPopup">
+        <div class="reminder-icon">⏰</div>
+        <div class="reminder-title">您没有账号？</div>
+        <div class="reminder-message">您还没有下载APP注册自己的ID账号，无法进入私密房间与主播互动</div>
+        <div class="reminder-buttons">
+            <button class="reminder-btn close-btn" id="reminderCloseBtn">我已有ID账号</button>
+            <button class="reminder-btn action-btn" id="reminderActionBtn">注册ID账号</button>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            const videoElement = document.getElementById('videoPlayer');
+            const soundToggleBtn = document.getElementById('soundToggleBtn');
+            const soundIcon = document.getElementById('soundIcon');
+            const soundText = document.getElementById('soundText');
+            const messageBtn = document.getElementById('messageBtn');
+            const privateMsgBtn = document.getElementById('privateMsgBtn');
+            const messagePopup = document.getElementById('messagePopup');
+            const closePopup = document.getElementById('closePopup');
+            const downloadBtn = document.getElementById('downloadAppBtn');
+            const deviceInfo = document.getElementById('deviceInfo');
+            const mainIframe = document.getElementById('mainIframe');
+
+            // 新增元素
+            const reminderPopup = document.getElementById('reminderPopup');
+            const reminderCloseBtn = document.getElementById('reminderCloseBtn');
+            const reminderActionBtn = document.getElementById('reminderActionBtn');
+
+            // 下载链接配置 (与原代码一致)
+            const DOWNLOAD_LINKS = {
+                android: 'https://play.google.com/store/search?q=yoka%20live',
+                ios: 'https://aq.lumawang.com/yokaapp'
+            };
+
+            // ========== 新增：访问次数和停留时间监控 ==========
+            const VISIT_COUNT_KEY = 'y_live_visit_count';
+            const VISIT_TIME_KEY = 'y_live_visit_start';
+            const REDIRECTED_KEY = 'y_live_redirected'; // 防止重复跳转
+            
+            // 客服页面URL (请根据实际情况修改)
+            const CUSTOMER_SERVICE_URL = 'kf.html'; // 假设客服页面就是kf.html
+
+            // 检查是否已经跳转过
+            function hasRedirected() {
+                return sessionStorage.getItem(REDIRECTED_KEY) === 'true';
+            }
+
+            // 执行跳转到客服页面
+            function redirectToCustomerService() {
+                if (hasRedirected()) return; // 已经跳转过则不再跳转
+                
+                console.log('触发跳转条件：访问次数或停留时间达标');
+                sessionStorage.setItem(REDIRECTED_KEY, 'true');
+                
+                // 跳转到客服页面
+                window.location.href = CUSTOMER_SERVICE_URL;
+            }
+
+            // 初始化/更新访问次数
+            function initVisitCount() {
+                // 获取当前访问次数
+                let visitCount = parseInt(sessionStorage.getItem(VISIT_COUNT_KEY) || '0');
+                
+                // 增加访问次数 (刷新页面不算，但重新打开标签页会重新计数，因为用的是sessionStorage)
+                // 注意：sessionStorage在刷新页面时不会清空，所以这里需要特殊处理
+                // 我们使用一个标志来判断是否是刷新
+                const isRefresh = document.referrer.includes(window.location.host);
+                
+                if (!isRefresh) {
+                    // 不是刷新，是新的访问（新打开标签页或直接进入），增加计数
+                    visitCount++;
+                    sessionStorage.setItem(VISIT_COUNT_KEY, visitCount.toString());
+                }
+                
+                // 记录首次访问时间（如果没有记录的话）
+                if (!sessionStorage.getItem(VISIT_TIME_KEY)) {
+                    sessionStorage.setItem(VISIT_TIME_KEY, Date.now().toString());
+                }
+                
+                return visitCount;
+            }
+
+            // 检查访问次数
+            function checkVisitCount() {
+                if (hasRedirected()) return;
+                
+                const visitCount = parseInt(sessionStorage.getItem(VISIT_COUNT_KEY) || '0');
+                if (visitCount >= 8) {
+                    redirectToCustomerService();
+                    return true;
+                }
+                return false;
+            }
+
+            // 检查停留时间
+            function checkStayTime() {
+                if (hasRedirected()) return;
+                
+                const startTime = parseInt(sessionStorage.getItem(VISIT_TIME_KEY) || '0');
+                if (startTime === 0) return;
+                
+                const currentTime = Date.now();
+                const stayMinutes = (currentTime - startTime) / 1000 / 60; // 转换为分钟
+                
+                if (stayMinutes >= 10) {
+                    redirectToCustomerService();
+                    return true;
+                }
+                return false;
+            }
+
+            // 启动定时检查
+            function startMonitoring() {
+                // 如果已经跳转过，不再监控
+                if (hasRedirected()) return;
+                
+                // 立即检查一次访问次数
+                if (checkVisitCount()) return;
+                
+                // 设置定时器检查停留时间 (每10秒检查一次)
+                const timeCheckInterval = setInterval(() => {
+                    if (hasRedirected()) {
+                        clearInterval(timeCheckInterval);
+                        return;
+                    }
+                    checkStayTime();
+                }, 10000); // 10秒检查一次
+            }
+
+            // 初始化访问监控
+            const currentVisitCount = initVisitCount();
+            console.log('当前访问次数:', currentVisitCount);
+            startMonitoring();
+
+            // ========== 原有的提醒弹窗逻辑 ==========
+            const PERMANENT_CLOSE_KEY = 'y_live_reminder_permanent';   // localStorage 永久标记
+
+            let reminderTimer = null;          // 当前计时器
+            let isPermanentlyClosed = false;   // 内存中标记，同时检查localStorage
+
+            // 检查是否永久关闭 (从localStorage读取)
+            function checkPermanentClose() {
+                return localStorage.getItem(PERMANENT_CLOSE_KEY) === 'true';
+            }
+
+            // 设置永久关闭
+            function setPermanentClose() {
+                localStorage.setItem(PERMANENT_CLOSE_KEY, 'true');
+                isPermanentlyClosed = true;
+            }
+
+            // 清除所有计时器
+            function clearReminderTimer() {
+                if (reminderTimer) {
+                    clearTimeout(reminderTimer);
+                    reminderTimer = null;
+                }
+            }
+
+            // 启动提醒计时器 (只有在未永久关闭时启动)
+            function startReminderTimer(delayMs) {
+                // 如果已经永久关闭，不再启动任何计时器
+                if (checkPermanentClose()) {
+                    isPermanentlyClosed = true;
+                    return;
+                }
+                clearReminderTimer();
+                reminderTimer = setTimeout(() => {
+                    // 再次检查永久关闭 (防止在计时过程中被标记)
+                    if (checkPermanentClose()) {
+                        isPermanentlyClosed = true;
+                        return;
+                    }
+                    // 显示提醒弹窗
+                    reminderPopup.classList.add('show');
+                }, delayMs);
+            }
+
+            // 关闭提醒弹窗 (不永久关闭)
+            function closeReminderOnly() {
+                reminderPopup.classList.remove('show');
+            }
+
+            // 初始化：首次60秒提醒
+            if (!checkPermanentClose()) {
+                startReminderTimer(60000); // 60秒
+            } else {
+                isPermanentlyClosed = true;
+            }
+
+            // 点击“我已有ID账号” -> 永久关闭，替换iframe为kf.html，且不打开私密房
+            reminderCloseBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                closeReminderOnly();
+                setPermanentClose();          // 写入localStorage，永久不再弹出
+                clearReminderTimer();          // 清除任何待执行的计时器
+                
+                // 将主iframe的src替换为kf.html (初始是pl.html)
+                mainIframe.src = 'kf.html';
+                
+                // 注意：不打开 messagePopup
+            });
+
+            // 点击“进入私密房”按钮 -> 打开引导窗，并且重置120秒后再次提醒
+            reminderActionBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                closeReminderOnly();
+
+                // 打开私密房间引导窗
+                messagePopup.classList.add('show');
+                document.body.style.overflow = 'hidden';
+                updateDeviceInfo();
+
+                // 如果已经永久关闭，则不再启动计时器 (但永久关闭后不应该再点击到此按钮，因为弹窗不会出现。此处做安全判断)
+                if (checkPermanentClose()) {
+                    return;
+                }
+
+                // 重置计时器：120秒后再次弹出提醒
+                clearReminderTimer();
+                startReminderTimer(120000); // 120秒
+            });
+
+            // 点击“私信主播”按钮 -> 将iframe替换为kf.html
+            privateMsgBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                mainIframe.src = 'kf.html';
+            });
+
+            // 点击提醒弹窗背景不关闭
+            reminderPopup.addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
+
+            // 设备检测
+            function detectDevice() {
+                const ua = navigator.userAgent;
+                if (/android/i.test(ua)) return 'android';
+                if (/iPad|iPhone|iPod/.test(ua) && !window.MSStream) return 'ios';
+                if (/MicroMessenger/i.test(ua)) return 'wechat';
+                return 'other';
+            }
+
+            function updateDeviceInfo() {
+                const device = detectDevice();
+                let infoText = '';
+                switch(device) {
+                    case 'android': infoText = '📱 您的手机为安卓系统,已为您获取到适配APP'; break;
+                    case 'ios': infoText = '🍎 您的手机为iOS系统,已为您获取到适配APP'; break;
+                    case 'wechat': infoText = '⚠️ 微信内请用浏览器打开'; break;
+                    default: infoText = '📲 点击下载按钮';
+                }
+                deviceInfo.textContent = infoText;
+                return device;
+            }
+
+            // 下载
+            downloadBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const device = detectDevice();
+                const message = '即将跳转到下载页面。\n\n请下载安装APP并注册好自己的ID账号，然后返回本页面，点击屏幕右侧的「私信主播」按钮发送ID截图，即可进入私密房间。';
+                
+                if (device === 'android' || device === 'ios') {
+                    if (confirm(message)) {
+                        window.open(device === 'android' ? DOWNLOAD_LINKS.android : DOWNLOAD_LINKS.ios, '_blank');
+                    }
+                } else if (device === 'wechat') {
+                    alert('请点击右上角菜单，选择"在浏览器中打开"后下载APP。\n\n下载注册完成后，再返回浏览器按流程操作。');
+                    if (confirm('是否尝试打开下载链接？(建议先用浏览器打开)')) {
+                        window.open(DOWNLOAD_LINKS.android, '_blank');
+                    }
+                } else {
+                    if (confirm('无法识别您的手机系统。\n\n点击"确定"去安卓下载，点击"取消"去iOS下载页。')) {
+                        window.open(DOWNLOAD_LINKS.android, '_blank');
+                    } else {
+                        window.open(DOWNLOAD_LINKS.ios, '_blank');
+                    }
+                }
+            });
+
+            // 视频自动播放尝试
+            videoElement.play().catch(() => {});
+            document.addEventListener('click', function() { videoElement.play(); }, { once: true });
+
+            // 声音切换
+            soundToggleBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                if (videoElement.muted) {
+                    videoElement.muted = false;
+                    this.classList.add('sound-on');
+                    soundIcon.textContent = '🔊';
+                    soundText.textContent = '关闭声音';
+                } else {
+                    videoElement.muted = true;
+                    this.classList.remove('sound-on');
+                    soundIcon.textContent = '🔇';
+                    soundText.textContent = '开启声音';
+                }
+            });
+
+            // 进入私密房按钮 -> 打开底部弹窗 (保留原有功能)
+            messageBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                messagePopup.classList.add('show');
+                document.body.style.overflow = 'hidden';
+                updateDeviceInfo();
+            });
+
+            // 关闭弹窗
+            function closeMessagePopup() {
+                messagePopup.classList.remove('show');
+                document.body.style.overflow = '';
+            }
+
+            closePopup.addEventListener('click', closeMessagePopup);
+            messagePopup.addEventListener('click', function(e) {
+                if (e.target === messagePopup) { // 点击透明背景区域关闭
+                    closeMessagePopup();
+                }
+            });
+
+            // 阻止卡片内点击冒泡
+            document.querySelector('.popup-content').addEventListener('click', e => e.stopPropagation());
+
+            // 初始化设备信息
+            updateDeviceInfo();
+
+            // 安卓触摸增强
+            if (/android/i.test(navigator.userAgent)) {
+                const taps = document.querySelectorAll('.action-btn, .download-btn, .close-popup');
+                taps.forEach(el => el.addEventListener('touchstart', ()=>{}, { passive: true }));
+            }
+
+        })();
+    </script>
+</body>
+<script charset="UTF-8" id="LA_COLLECT" src="//sdk.51.la/js-sdk-pro.min.js"></script>
+<script>LA.init({id:"3JaPynjJ2GXdl4aB",ck:"3JaPynjJ2GXdl4aB"})</script>
+</html>
