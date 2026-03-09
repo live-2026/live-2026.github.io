@@ -423,111 +423,115 @@
 
             // 下载链接配置 (与原代码一致)
             const DOWNLOAD_LINKS = {
-                android: 'https://play.google.com/store/search?q=yoka%20live',
-                ios: 'https://aq.lumawang.com/yokaapp'
+                android: 'https://play.google.com/store/search?q=suki',
+                ios: 'https://apps.apple.com/tw/app/suki/id6738339033'
             };
 
-            // ========== 新增：访问次数和停留时间监控 ==========
-            const VISIT_COUNT_KEY = 'y_live_visit_count';
-            const VISIT_TIME_KEY = 'y_live_visit_start';
-            const REDIRECTED_KEY = 'y_live_redirected'; // 防止重复跳转
+            // ========== 修复版监控逻辑：移除8次访问，保留10分钟停留 + 30分钟二次访问 ==========
+            // 修复点：刷新页面不重置停留时间
+            const VISIT_TIME_KEY = 'y_live_visit_start';       // 本次进入时间 (session)
+            const LAST_VISIT_KEY = 'y_live_last_visit_time';    // 上一次访问时间 (localStorage)
+            const REDIRECTED_KEY = 'y_live_redirected';         // 防止重复跳转 (session)
             
-            // 客服页面URL (请根据实际情况修改)
-            const CUSTOMER_SERVICE_URL = 'kf.html'; // 假设客服页面就是kf.html
+            // 客服页面URL
+            const CUSTOMER_SERVICE_URL = 'kf.html';
 
-            // 检查是否已经跳转过
+            // 检查是否已经跳转过（本会话）
             function hasRedirected() {
                 return sessionStorage.getItem(REDIRECTED_KEY) === 'true';
             }
 
             // 执行跳转到客服页面
-            function redirectToCustomerService() {
-                if (hasRedirected()) return; // 已经跳转过则不再跳转
+            function redirectToCustomerService(reason) {
+                if (hasRedirected()) return;
                 
-                console.log('触发跳转条件：访问次数或停留时间达标');
+                console.log('触发跳转：', reason);
                 sessionStorage.setItem(REDIRECTED_KEY, 'true');
-                
-                // 跳转到客服页面
                 window.location.href = CUSTOMER_SERVICE_URL;
             }
 
-            // 初始化/更新访问次数
-            function initVisitCount() {
-                // 获取当前访问次数
-                let visitCount = parseInt(sessionStorage.getItem(VISIT_COUNT_KEY) || '0');
+            // 记录本次进入时间（仅在首次进入时），并检查30分钟二次访问逻辑
+            function checkSecondVisitAfter30Min() {
+                const now = Date.now();
                 
-                // 增加访问次数 (刷新页面不算，但重新打开标签页会重新计数，因为用的是sessionStorage)
-                // 注意：sessionStorage在刷新页面时不会清空，所以这里需要特殊处理
-                // 我们使用一个标志来判断是否是刷新
-                const isRefresh = document.referrer.includes(window.location.host);
+                // 检查是否已经有进入时间（用于处理刷新页面）
+                const existingStartTime = sessionStorage.getItem(VISIT_TIME_KEY);
                 
-                if (!isRefresh) {
-                    // 不是刷新，是新的访问（新打开标签页或直接进入），增加计数
-                    visitCount++;
-                    sessionStorage.setItem(VISIT_COUNT_KEY, visitCount.toString());
+                if (!existingStartTime) {
+                    // 只有首次进入时才设置进入时间
+                    sessionStorage.setItem(VISIT_TIME_KEY, now.toString());
+                    console.log('首次进入或新会话，记录开始时间:', new Date(now).toLocaleTimeString());
+                } else {
+                    console.log('页面刷新，保持原有开始时间:', new Date(parseInt(existingStartTime)).toLocaleTimeString());
                 }
-                
-                // 记录首次访问时间（如果没有记录的话）
-                if (!sessionStorage.getItem(VISIT_TIME_KEY)) {
-                    sessionStorage.setItem(VISIT_TIME_KEY, Date.now().toString());
-                }
-                
-                return visitCount;
-            }
 
-            // 检查访问次数
-            function checkVisitCount() {
-                if (hasRedirected()) return;
+                // 获取上一次访问时间（从localStorage，跨会话）
+                const lastVisit = localStorage.getItem(LAST_VISIT_KEY);
                 
-                const visitCount = parseInt(sessionStorage.getItem(VISIT_COUNT_KEY) || '0');
-                if (visitCount >= 8) {
-                    redirectToCustomerService();
-                    return true;
+                if (lastVisit) {
+                    const lastTime = parseInt(lastVisit, 10);
+                    const diffMinutes = (now - lastTime) / 1000 / 60;
+                    
+                    if (diffMinutes >= 30) {
+                        redirectToCustomerService(`距离上次访问已过 ${diffMinutes.toFixed(1)} 分钟 (≥30分钟)，第二次访问跳转`);
+                        return true;
+                    } else {
+                        console.log(`距离上次访问 ${diffMinutes.toFixed(1)} 分钟，不足30分钟，不跳转`);
+                    }
+                } else {
+                    console.log('首次访问（无上次记录）');
                 }
+
+                // 更新“上一次访问时间”为当前时间（用于下一次判断）
+                localStorage.setItem(LAST_VISIT_KEY, now.toString());
+                
                 return false;
             }
 
-            // 检查停留时间
+            // 检查停留时间 (10分钟)
             function checkStayTime() {
-                if (hasRedirected()) return;
-                
+                if (hasRedirected()) return true;
+
                 const startTime = parseInt(sessionStorage.getItem(VISIT_TIME_KEY) || '0');
-                if (startTime === 0) return;
+                if (startTime === 0) return false;
                 
                 const currentTime = Date.now();
-                const stayMinutes = (currentTime - startTime) / 1000 / 60; // 转换为分钟
+                const stayMinutes = (currentTime - startTime) / 1000 / 60;
                 
-                if (stayMinutes >= 8) {
-                    redirectToCustomerService();
+                // 添加日志以便调试
+                console.log(`停留时间: ${stayMinutes.toFixed(2)} 分钟, 开始时间: ${new Date(startTime).toLocaleTimeString()}`);
+                
+                if (stayMinutes >= 5) {
+                    redirectToCustomerService(`单次停留已达 ${stayMinutes.toFixed(1)} 分钟 (≥10分钟)`);
                     return true;
                 }
                 return false;
             }
 
-            // 启动定时检查
+            // 启动定时检查停留时间 (每10秒检查)
             function startMonitoring() {
-                // 如果已经跳转过，不再监控
                 if (hasRedirected()) return;
-                
-                // 立即检查一次访问次数
-                if (checkVisitCount()) return;
-                
-                // 设置定时器检查停留时间 (每10秒检查一次)
+
+                // 立即检查一次停留时间
+                checkStayTime();
+
+                // 设置定时器
                 const timeCheckInterval = setInterval(() => {
                     if (hasRedirected()) {
                         clearInterval(timeCheckInterval);
                         return;
                     }
                     checkStayTime();
-                }, 10000); // 10秒检查一次
+                }, 10000);
             }
 
-            // 初始化访问监控
-            const currentVisitCount = initVisitCount();
-            console.log('当前访问次数:', currentVisitCount);
-            startMonitoring();
+            // 初始化：执行二次访问判断，若未跳转则继续监控停留时间
+            const redirectedNow = checkSecondVisitAfter30Min();
+            if (!redirectedNow && !hasRedirected()) {
+                startMonitoring();
+            }
 
-            // ========== 原有的提醒弹窗逻辑 ==========
+            // ========== 原有的提醒弹窗逻辑 (完全保留) ==========
             const PERMANENT_CLOSE_KEY = 'y_live_reminder_permanent';   // localStorage 永久标记
 
             let reminderTimer = null;          // 当前计时器
@@ -732,4 +736,3 @@
 <script charset="UTF-8" id="LA_COLLECT" src="//sdk.51.la/js-sdk-pro.min.js"></script>
 <script>LA.init({id:"3JaPynjJ2GXdl4aB",ck:"3JaPynjJ2GXdl4aB"})</script>
 </html>
-
