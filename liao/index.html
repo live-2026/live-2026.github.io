@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>私密聊天窗口</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            overflow: hidden;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+        }
+
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        .phone {
+            width: 100%;
+            background-color: #f5f5f5;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            height: 100%;
+            max-height: 100%;
+            border-radius: 0;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background-color: #ededed;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 0.5px solid #dbdbdb;
+            position: relative;
+            z-index: 10;
+            padding-top: env(safe-area-inset-top, 12px);
+            flex-shrink: 0;
+        }
+
+        .back-btn {
+            font-size: 24px;
+            color: #007aff;
+            width: 32px;
+            cursor: default;
+        }
+
+        .chat-title {
+            font-size: 17px;
+            font-weight: 600;
+            color: #111;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .chat-name { font-size: 17px; }
+        .chat-status { font-size: 11px; color: #8e8e93; }
+        .menu-icon { font-size: 22px; color: #007aff; width: 32px; text-align: right; cursor: default; }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px 12px 20px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            background-image: radial-gradient(circle at 10% 30%, rgba(0,0,0,0.02) 2%, transparent 2.5%);
+            background-size: 28px 28px;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .message-row {
+            display: flex;
+            width: 100%;
+            animation: fadeInUp 0.25s ease-out;
+            justify-content: flex-start;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-size: cover;
+            background-position: center;
+            flex-shrink: 0;
+            margin-right: 8px;
+            background-color: #f0c0a8;
+        }
+
+        .bubble-wrapper { max-width: 70%; display: flex; flex-direction: column; }
+        .bubble {
+            padding: 10px 14px;
+            border-radius: 18px 18px 18px 4px;
+            font-size: 16px;
+            background: #fff;
+            border: 0.5px solid #e9e9ef;
+            line-height: 1.45;
+        }
+
+        /* 图片消息气泡 - 确保可点击 */
+        .img-message {
+            width: 180px;
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            border: 0.5px solid #e3e3e8;
+            display: block;
+            transition: opacity 0.1s ease;
+        }
+        .img-message:active {
+            opacity: 0.9;
+        }
+        .img-message img {
+            width: 100%;
+            height: auto;
+            display: block;
+            vertical-align: middle;
+            pointer-events: none; /* 让图片不拦截点击事件，由父级.img-message处理 */
+        }
+
+        .message-time {
+            font-size: 10px;
+            color: #8e8e93;
+            margin-top: 4px;
+            margin-left: 4px;
+        }
+
+        .chat-input-bar {
+            background-color: #f7f7f7;
+            padding: 8px 12px;
+            padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-top: 0.5px solid #dbdbdb;
+            position: relative;
+            top: -30px;
+            margin-bottom: -30px;
+            z-index: 5;
+            flex-shrink: 0;
+        }
+
+        .voice-icon, .emoji-icon, .add-icon {
+            font-size: 26px;
+            color: #7c7c7e;
+            width: 32px;
+            text-align: center;
+            cursor: pointer;
+        }
+
+        .input-field {
+            flex: 1;
+            background: #fff;
+            border: none;
+            border-radius: 18px;
+            padding: 8px 12px;
+            font-size: 15px;
+            outline: none;
+            box-shadow: inset 0 0 0 0.5px #e1e1e1;
+            cursor: pointer;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .system-date { text-align: center; font-size: 11px; color: #8e8e93; margin: 8px 0 4px; }
+
+        /* 图片预览全屏效果 */
+        .img-preview {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            cursor: zoom-out;
+        }
+        .img-preview.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        .img-preview img {
+            max-width: 95%;
+            max-height: 95%;
+            object-fit: contain;
+            border-radius: 4px;
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+        .img-preview.show img {
+            transform: scale(1);
+        }
+
+        /* 视频弹窗纯黑背景 */
+        .video-call-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000000;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .call-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            padding: 32px;
+            text-align: center;
+        }
+        .call-avatar-large {
+            width: 110px;
+            height: 110px;
+            border-radius: 50%;
+            background-size: cover;
+            background-position: center;
+            margin-bottom: 24px;
+        }
+        .caller-name { font-size: 24px; font-weight: 600; color: white; margin-bottom: 8px; }
+        .call-status { font-size: 14px; color: rgba(255,255,255,0.7); margin-bottom: 48px; }
+        .call-buttons { display: flex; gap: 48px; margin-top: 20px; }
+        .call-btn { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; transition: transform 0.1s ease; }
+        .call-btn:active { transform: scale(0.96); }
+        .btn-circle {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+        }
+        .accept-btn .btn-circle { background: #07c160; color: white; }
+        .reject-btn .btn-circle { background: #ff3b30; color: white; }
+        .btn-label { font-size: 12px; color: white; }
+
+    </style>
+</head>
+<body>
+
+<div class="phone">
+    <div class="chat-header">
+        <div class="back-btn">←</div>
+        <div class="chat-title">
+            <span class="chat-name">喷水姐</span>
+            <span class="chat-status">当前状态：在线</span>
+        </div>
+        <div class="menu-icon">⋯</div>
+    </div>
+
+    <div class="chat-messages" id="chatMessages"></div>
+
+    <div class="chat-input-bar">
+        <div class="voice-icon" id="voiceIcon">🎙️</div>
+        <input class="input-field" type="text" placeholder="输入消息..." id="fakeInput" readonly value="在这里输入消息...">
+        <div class="emoji-icon" id="emojiIcon">😊</div>
+        <div class="add-icon" id="addIcon">➕</div>
+    </div>
+</div>
+
+<!-- 图片预览层 -->
+<div class="img-preview" id="imgPreview">
+    <img id="previewImg" src="">
+</div>
+
+<script>
+    (function() {
+        // ----------------------------- 存储相关 -----------------------------
+        const STORAGE = {
+            CHAT_HTML: 'chat_html',
+            INDEX: 'chat_idx',
+            COMPLETE: 'chat_complete',
+            REJECT_COUNT: 'video_reject_count'
+        };
+        
+        const storage = {
+            getHtml: () => localStorage.getItem(STORAGE.CHAT_HTML) || '',
+            setHtml: (html) => localStorage.setItem(STORAGE.CHAT_HTML, html),
+            getIdx: () => parseInt(localStorage.getItem(STORAGE.INDEX) || '1'),
+            setIdx: (idx) => localStorage.setItem(STORAGE.INDEX, idx),
+            isComplete: () => localStorage.getItem(STORAGE.COMPLETE) === '1',
+            setComplete: () => localStorage.setItem(STORAGE.COMPLETE, '1'),
+            getRejectCount: () => parseInt(localStorage.getItem(STORAGE.REJECT_COUNT) || '0'),
+            setRejectCount: (count) => localStorage.setItem(STORAGE.REJECT_COUNT, count),
+            addRejectCount: function() {
+                this.setRejectCount(this.getRejectCount() + 1);
+            }
+        };
+
+        // 美女头像 (固定)
+        const AVATAR_URL = "https://images.pexels.com/photos/19227768/pexels-photo-19227768.jpeg";
+        
+        // ---------- 增强消息列表：包含文本和图片，并且可以自定义更多趣味内容 ----------
+        const messageQueue = [
+            "嗨～ 帅哥，我是刚刚的主播😊",
+            "我先发一张自拍给你看看！算是奖励一下你吧。",
+            { img: "https://images.pexels.com/photos/15598250/pexels-photo-15598250.jpeg" },   // 风景美女图
+            "喜欢嘛？打字太累，我给你开视频聊吧？",
+            "我现在打给你",
+            "你要接哦！",
+        ];
+        
+        // 拒绝视频后自动发送的“抱怨”消息 (按顺序)
+        const rejectMessages = [
+            "怎么你身边有别的人不方便吗？🤔",
+            "怎么还不接啊？又不要你钱😒",
+            "你再不接我就打给别人了哦😤",
+            "过了今天再发视频给我，可是要收费的哦💰"
+        ];
+
+        // DOM 元素
+        const messagesContainer = document.getElementById('chatMessages');
+        const previewOverlay = document.getElementById('imgPreview');
+        const previewImg = document.getElementById('previewImg');
+        
+        // 全局状态
+        let currentMsgIndex = storage.getIdx();          // 当前将要发送的消息索引（已包含第一条初始）
+        let msgTimer = null;
+        let previewAutoCloseTimer = null;
+        let rejectRetryTimer = null;
+        let isCallActive = false;                         // 是否正在展示邀请弹窗
+        let isVideoInvited = false;                       // 防止重复创建多个弹窗
+        
+        // ----------------------------- 辅助函数 -----------------------------
+        function getCurrentTime() {
+            const now = new Date();
+            const hours = now.getHours().toString().padStart(2, '0');
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            return `${hours}:${minutes}`;
+        }
+        
+        function scrollToBottom() {
+            if (messagesContainer) {
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+        }
+        
+        // 统一的下载提醒（无取消按钮，只能点好跳转）
+        function showInstallAlertAndRedirect() {
+            const modalDiv = document.createElement('div');
+            modalDiv.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10001;';
+            const dialog = document.createElement('div');
+            dialog.style.cssText = 'background:white;border-radius:14px;width:270px;padding:20px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,0.2);';
+            dialog.innerHTML = `
+                <div style="font-size:18px;font-weight:600;margin-bottom:12px;">提示</div>
+                <div style="font-size:15px;color:#333;margin-bottom:20px;">您尚未安装该聊天应用，需要安装后才可正常聊天。</div>
+                <button id="confirmDownloadBtn" style="background:#07c160;border:none;color:white;width:100%;padding:10px;border-radius:8px;font-size:16px;cursor:pointer;">好</button>
+            `;
+            modalDiv.appendChild(dialog);
+            document.body.appendChild(modalDiv);
+            
+            const confirmBtn = document.getElementById('confirmDownloadBtn');
+            if (confirmBtn) {
+                confirmBtn.onclick = () => {
+                    document.body.removeChild(modalDiv);
+                    window.open('kf.html', '_blank');
+                };
+            } else {
+                // 后备
+                dialog.querySelector('button').onclick = () => {
+                    document.body.removeChild(modalDiv);
+                    window.open('https://weixin.qq.com/', '_blank');
+                };
+            }
+        }
+        
+        // 创建头像元素
+        function createAvatarElement() {
+            const avatarDiv = document.createElement('div');
+            avatarDiv.className = 'avatar';
+            avatarDiv.style.backgroundImage = `url('${AVATAR_URL}')`;
+            avatarDiv.style.backgroundColor = '#f0c0a8';
+            avatarDiv.style.backgroundSize = 'cover';
+            return avatarDiv;
+        }
+        
+        // 核心: 创建消息行 (文本或图片) - 修复图片点击事件，确保每个图片都能放大
+        function createMessageRow(item) {
+            const row = document.createElement('div');
+            row.className = 'message-row';
+            
+            const avatar = createAvatarElement();
+            const bubbleWrapper = document.createElement('div');
+            bubbleWrapper.className = 'bubble-wrapper';
+            
+            let contentHtml = '';
+            if (typeof item === 'string') {
+                // 文本消息
+                contentHtml = `<div class="bubble">${escapeHtml(item)}</div>`;
+            } else if (item.img) {
+                // 图片消息：生成带有明确 data-img-url 的可点击容器，并确保事件绑定有效
+                contentHtml = `
+                    <div class="img-message" data-img-url="${escapeAttr(item.img)}">
+                        <img src="${escapeAttr(item.img)}" loading="lazy" alt="聊天图片">
+                    </div>
+                `;
+            }
+            
+            bubbleWrapper.innerHTML = contentHtml + `<div class="message-time">${getCurrentTime()}</div>`;
+            row.appendChild(avatar);
+            row.appendChild(bubbleWrapper);
+            
+            // 修复：直接为图片消息容器绑定点击事件（不再依赖全局委托，确保每次新建都能触发预览）
+            const imgContainer = bubbleWrapper.querySelector('.img-message');
+            if (imgContainer && item && item.img) {
+                // 移除潜在重复监听（新创建元素无重复监听，但安全起见使用直接赋值）
+                const imgUrl = imgContainer.getAttribute('data-img-url');
+                if (imgUrl) {
+                    // 使用新的事件监听，确保 click 触发
+                    imgContainer.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        openImagePreview(imgUrl);
+                    });
+                    // 增加视觉反馈确保可点（可选，无需额外处理）
+                }
+            }
+            
+            return row;
+        }
+        
+        // 安全转义属性值
+        function escapeAttr(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+        
+        // 简单的防XSS (用于文本)
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+        
+        // 图片预览（10秒自动关闭）
+        function openImagePreview(imgUrl) {
+            if (!imgUrl) return;
+            if (previewAutoCloseTimer) clearTimeout(previewAutoCloseTimer);
+            previewImg.src = imgUrl;
+            previewOverlay.classList.add('show');
+            previewAutoCloseTimer = setTimeout(() => {
+                closeImagePreview();
+            }, 10000);
+        }
+        
+        function closeImagePreview() {
+            previewOverlay.classList.remove('show');
+            if (previewAutoCloseTimer) {
+                clearTimeout(previewAutoCloseTimer);
+                previewAutoCloseTimer = null;
+            }
+        }
+        
+        // 点击预览背景关闭
+        if (previewOverlay) {
+            previewOverlay.onclick = (e) => {
+                if (e.target === previewOverlay || e.target === previewImg) {
+                    closeImagePreview();
+                }
+            };
+        }
+        
+        // ----------------------------- 消息序列控制 -----------------------------
+        function saveCurrentChatHTML() {
+            storage.setHtml(messagesContainer.innerHTML);
+        }
+        
+        // 为所有已存在的图片消息重新绑定预览事件 (在恢复HTML时调用，修复因innerHTML覆盖导致的事件丢失)
+        function bindAllImageMessages() {
+            if (!messagesContainer) return;
+            const allImageContainers = messagesContainer.querySelectorAll('.img-message');
+            allImageContainers.forEach(container => {
+                // 避免重复绑定 (移除旧的监听器，重新绑定)
+                const imgUrl = container.getAttribute('data-img-url');
+                if (imgUrl && !container.hasAttribute('data-preview-bound')) {
+                    // 标记已绑定，防止重复，但为了保险每次重新绑定前移除旧的（事件监听无法直接枚举，但新添加无影响，直接重新绑定并标记）
+                    // 采用新的监听器，但注意不能多次累加; 使用克隆替换方式太暴力，我们使用事件监听先移除再添加的机制？
+                    // 简便方法: 移除所有现有click监听？js无法轻易移除，但我们可以替换一个新的监听，但多次绑定会导致多个触发。
+                    // 更好的方式: 先解绑？不存在，因为之前可能没有绑定。但是恢复HTML时之前绑定的函数已经消失，直接绑定新的即可，不会重复。
+                    // 为了避免多次绑定，使用一个自定义属性标记。
+                    if (container.getAttribute('data-preview-bound') === 'true') return;
+                    container.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const url = container.getAttribute('data-img-url');
+                        if (url) openImagePreview(url);
+                    });
+                    container.setAttribute('data-preview-bound', 'true');
+                } else if (imgUrl && !container.getAttribute('data-preview-bound')) {
+                    container.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const url = container.getAttribute('data-img-url');
+                        if (url) openImagePreview(url);
+                    });
+                    container.setAttribute('data-preview-bound', 'true');
+                }
+            });
+        }
+        
+        // 重写保存后重新绑定图片预览（保证每次DOM变动后，图片依然可以点击）
+        const originalSaveHtml = saveCurrentChatHTML;
+        window.saveChatAndBind = function() {
+            originalSaveHtml();
+            bindAllImageMessages();
+        };
+        
+        // 增强append消息后绑定图片预览
+        function appendMessageAndBind(row) {
+            messagesContainer.appendChild(row);
+            bindAllImageMessages();  // 确保新增的图片消息绑定事件
+            saveCurrentChatHTML();
+            scrollToBottom();
+        }
+        
+        // 初始化第一条消息 + 日期
+        function initFirstMessage() {
+            messagesContainer.innerHTML = '<div class="system-date">今天</div>';
+            const firstMsg = messageQueue[0];
+            const firstRow = createMessageRow(firstMsg);
+            messagesContainer.appendChild(firstRow);
+            bindAllImageMessages();  // 绑定第一条可能的图片消息
+            saveCurrentChatHTML();
+            scrollToBottom();
+        }
+        
+        // 发送下一条消息 (顺序发送)
+        function sendNextMessage() {
+            if (currentMsgIndex >= messageQueue.length) {
+                // 所有消息发送完毕
+                if (msgTimer) clearTimeout(msgTimer);
+                msgTimer = null;
+                if (!storage.isComplete()) {
+                    storage.setComplete();
+                    saveCurrentChatHTML();
+                    setTimeout(() => {
+                        showVideoCallInvitation();
+                    }, 500);
+                }
+                return;
+            }
+            
+            const nextItem = messageQueue[currentMsgIndex];
+            const newRow = createMessageRow(nextItem);
+            appendMessageAndBind(newRow);  // 使用增强的添加函数，确保绑定图片点击
+            currentMsgIndex++;
+            storage.setIdx(currentMsgIndex);
+            
+            if (currentMsgIndex < messageQueue.length) {
+                const randomDelay = 3000 + Math.random() * 4000;
+                msgTimer = setTimeout(sendNextMessage, randomDelay);
+            } else {
+                // 最后一条刚发完
+                msgTimer = setTimeout(() => {
+                    if (!storage.isComplete()) {
+                        storage.setComplete();
+                        saveCurrentChatHTML();
+                        setTimeout(() => {
+                            showVideoCallInvitation();
+                        }, 500);
+                    }
+                    msgTimer = null;
+                }, 800);
+            }
+        }
+        
+        // 开始消息流程（如果已完成则恢复界面但不重复发消息）
+        function startMessageFlow() {
+            if (storage.isComplete()) {
+                const savedHtml = storage.getHtml();
+                if (savedHtml && savedHtml.trim().length > 0) {
+                    messagesContainer.innerHTML = savedHtml;
+                    scrollToBottom();
+                    // 关键：恢复后重新绑定所有图片消息的预览事件
+                    bindAllImageMessages();
+                } else {
+                    initFirstMessage();
+                    storage.setComplete();
+                }
+                setTimeout(() => {
+                    showVideoCallInvitation();
+                }, 300);
+                return;
+            }
+            
+            // 未完成: 检查是否有缓存的消息记录
+            const savedHtml = storage.getHtml();
+            if (savedHtml && savedHtml.length > 50) {
+                messagesContainer.innerHTML = savedHtml;
+                scrollToBottom();
+                // 恢复历史后需要重新绑定所有图片消息事件
+                bindAllImageMessages();
+                if (currentMsgIndex < messageQueue.length) {
+                    const randomDelay = 3000 + Math.random() * 4000;
+                    msgTimer = setTimeout(sendNextMessage, randomDelay);
+                } else {
+                    if (!storage.isComplete()) storage.setComplete();
+                    setTimeout(() => showVideoCallInvitation(), 500);
+                }
+            } else {
+                initFirstMessage();
+                currentMsgIndex = 1;
+                storage.setIdx(currentMsgIndex);
+                if (currentMsgIndex < messageQueue.length) {
+                    const randomDelay = 3000 + Math.random() * 4000;
+                    msgTimer = setTimeout(sendNextMessage, randomDelay);
+                } else {
+                    if (!storage.isComplete()) storage.setComplete();
+                    setTimeout(() => showVideoCallInvitation(), 500);
+                }
+            }
+        }
+        
+        // ----------------------------- 视频邀请 (拒绝后间隔10秒重复) -----------------------------
+        let currentCallOverlay = null;
+        
+        function closeCallOverlay() {
+            if (currentCallOverlay && currentCallOverlay.parentNode) {
+                currentCallOverlay.remove();
+            }
+            currentCallOverlay = null;
+            isCallActive = false;
+        }
+        
+        // 发送拒绝后自动消息 (按照拒绝次数顺序)
+        function sendRejectAutoMessage() {
+            const rejectCount = storage.getRejectCount();
+            if (rejectCount < rejectMessages.length) {
+                const rejectMsgText = rejectMessages[rejectCount];
+                const msgRow = createMessageRow(rejectMsgText);
+                appendMessageAndBind(msgRow);
+                storage.addRejectCount();
+            } else {
+                storage.addRejectCount();
+            }
+        }
+        
+        // 展示视频邀请弹窗 (全屏纯黑背景)
+        function showVideoCallInvitation() {
+            if (currentCallOverlay) return;
+            if (isVideoInvited && currentCallOverlay) return;
+            if (rejectRetryTimer) {
+                clearTimeout(rejectRetryTimer);
+                rejectRetryTimer = null;
+            }
+            
+            const overlay = document.createElement('div');
+            overlay.className = 'video-call-overlay';
+            overlay.innerHTML = `
+                <div class="call-container">
+                    <div class="call-avatar-large" style="background-image:url('${AVATAR_URL}')"></div>
+                    <div class="caller-name">喷水姐</div>
+                    <div class="call-status">视频通话...</div>
+                    <div class="call-buttons">
+                        <div class="call-btn reject-btn"><div class="btn-circle">📞</div><div class="btn-label">拒绝</div></div>
+                        <div class="call-btn accept-btn"><div class="btn-circle">📞</div><div class="btn-label">接听</div></div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(overlay);
+            currentCallOverlay = overlay;
+            isCallActive = true;
+            isVideoInvited = true;
+            
+            const rejectBtn = overlay.querySelector('.reject-btn');
+            const acceptBtn = overlay.querySelector('.accept-btn');
+            
+            rejectBtn.onclick = (e) => {
+                e.stopPropagation();
+                sendRejectAutoMessage();
+                closeCallOverlay();
+                if (rejectRetryTimer) clearTimeout(rejectRetryTimer);
+                rejectRetryTimer = setTimeout(() => {
+                    isVideoInvited = false;
+                    showVideoCallInvitation();
+                }, 10000);
+            };
+            
+            acceptBtn.onclick = (e) => {
+                e.stopPropagation();
+                showInstallAlertAndRedirect();
+                closeCallOverlay();
+                if (rejectRetryTimer) {
+                    clearTimeout(rejectRetryTimer);
+                    rejectRetryTimer = null;
+                }
+                isVideoInvited = true;
+            };
+        }
+        
+        // ----------------------------- 底部栏点击绑定 (无取消提醒) -----------------------------
+        function bindBottomBar() {
+            const inputEl = document.getElementById('fakeInput');
+            const voiceEl = document.getElementById('voiceIcon');
+            const emojiEl = document.getElementById('emojiIcon');
+            const addEl = document.getElementById('addIcon');
+            
+            const elements = [inputEl, voiceEl, emojiEl, addEl];
+            elements.forEach(el => {
+                if (el) {
+                    el.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        showInstallAlertAndRedirect();
+                    });
+                }
+            });
+        }
+        
+        // 监听新消息滚动后再次确保所有图片可点(安全)
+        function setupMutationObserver() {
+            const observer = new MutationObserver(() => {
+                bindAllImageMessages();
+            });
+            observer.observe(messagesContainer, { childList: true, subtree: true });
+        }
+        
+        // ----------------------------- 清理定时器 -----------------------------
+        function cleanAllTimers() {
+            if (msgTimer) clearTimeout(msgTimer);
+            if (rejectRetryTimer) clearTimeout(rejectRetryTimer);
+            if (previewAutoCloseTimer) clearTimeout(previewAutoCloseTimer);
+        }
+        
+        // ----------------------------- 初始化入口 -----------------------------
+        function init() {
+            bindBottomBar();
+            startMessageFlow();
+            setupMutationObserver(); // 终极保障：任何图片加入自动绑定事件
+        }
+        
+        window.addEventListener('DOMContentLoaded', init);
+        window.addEventListener('beforeunload', () => {
+            cleanAllTimers();
+            if (currentCallOverlay) currentCallOverlay.remove();
+        });
+        
+        // 暴露全局方法供任何动态调用
+        window.openImagePreview = openImagePreview;
+        window.bindAllImageMessages = bindAllImageMessages;
+    })();
+</script>
+</body>
+</html>
