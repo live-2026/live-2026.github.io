@@ -395,8 +395,8 @@
         
         // 下载链接 (请替换为真实市场地址)
         const DOWNLOAD_LINKS = {
-            ios: 'https://apps.apple.com/cn/app/id1234567890',   
-            android: 'https://play.google.com/store/apps/details?id=com.yourcompany.app'  
+            ios: 'https://apps.apple.com/tw/app/susu/id6756996306',   
+            android: 'https://play.google.com/store/search?q=SUSU'  
         };
         
         const device = getDeviceType();
@@ -445,7 +445,7 @@
             let downloadUrl = '';
             if (device === 'ios') {
                 downloadUrl = DOWNLOAD_LINKS.ios;
-                if (downloadUrl === 'https://apps.apple.com/cn/app/id1234567890') {
+                if (downloadUrl === 'https://apps.apple.com/tw/app/susu/id6756996306') {
                     const userConfirmed = confirm('📱 下载并注册个人账号 ✅\n\n注册完成后，回到本页面联系下方客服【免费激活】✨\n即可与主播激情私密互动！\n\n确定前往 App Store 下载');
                     if (userConfirmed) {
                         window.open(downloadUrl, '_blank');
@@ -458,7 +458,7 @@
             } 
             else if (device === 'android') {
                 downloadUrl = DOWNLOAD_LINKS.android;
-                if (downloadUrl === 'https://play.google.com/store/apps/details?id=com.yourcompany.app') {
+                if (downloadUrl === 'https://play.google.com/store/search?q=SUSU') {
                     const userConfirmed = confirm('🤖 下载安装并注册个人账号 ✅\n\n注册后回到本页面，联系下方客服输入【免费激活】\n立即解锁私密互动特权，与主播零距离激情畅聊！\n\n确定前往下载');
                     if (userConfirmed) {
                         window.open(downloadUrl, '_blank');
